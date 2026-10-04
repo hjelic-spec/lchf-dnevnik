@@ -1,0 +1,8 @@
+{
+  "appId": "hr.lchf.dnevnik",
+  "appName": "LCHF Dnevnik",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f5f3ee"
+  }
+}

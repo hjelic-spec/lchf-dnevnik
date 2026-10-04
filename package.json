@@ -1,0 +1,19 @@
+{
+  "name": "lchf-dnevnik",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LCHF Dnevnik – težina, Keto-Diastix, makronutrijenti i Health Connect",
+  "scripts": {
+    "copy:core": "node -e \"require('fs').copyFileSync('node_modules/@capacitor/core/dist/capacitor.js','www/capacitor.js')\"",
+    "sync": "npm run copy:core && cap sync android",
+    "serve": "node scripts/serve.js",
+    "apk": "npm run sync && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}
