@@ -1,6 +1,6 @@
 // Offline cache aplikacijske ljuske. Povećaj VERSION pri svakoj objavi.
-const VERSION = 'lchf-v1';
-const ASSETS = ['./', './index.html', './app.js', './styles.css', './capacitor.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable.png', './privacy.html'];
+const VERSION = 'lchf-v2';
+const ASSETS = ['./', './index.html', './app.js', './foods.js', './vendor/zxing.min.js', './styles.css', './capacitor.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable.png', './privacy.html'];
 
 self.addEventListener('install', ev => {
   ev.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

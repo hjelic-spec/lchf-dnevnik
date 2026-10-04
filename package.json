@@ -4,14 +4,16 @@
   "private": true,
   "description": "LCHF Dnevnik – težina, Keto-Diastix, makronutrijenti i Health Connect",
   "scripts": {
-    "copy:core": "node -e \"require('fs').copyFileSync('node_modules/@capacitor/core/dist/capacitor.js','www/capacitor.js')\"",
+    "copy:core": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/@capacitor/core/dist/capacitor.js','www/capacitor.js');fs.mkdirSync('www/vendor',{recursive:true});fs.copyFileSync('node_modules/@zxing/library/umd/index.min.js','www/vendor/zxing.min.js')\"",
     "sync": "npm run copy:core && cap sync android",
     "serve": "node scripts/serve.js",
     "apk": "npm run sync && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
-    "@capacitor/core": "^8.5.2"
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@zxing/library": "^0.21.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2"

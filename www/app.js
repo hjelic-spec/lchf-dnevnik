@@ -12,9 +12,10 @@ const DEFAULT_SETTINGS = {
   carbsIncludeFiber: false, // EU deklaracije: UH NE uključuju vlakna
   healthWeight: true,       // uvozi težinu iz Health Connecta za dane bez unosa
   lastBackup: null,
-  hideInstall: false
+  hideInstall: false,
+  fastGoal: 16              // cilj posta u satima
 };
-const emptyDb = () => ({ settings: { ...DEFAULT_SETTINGS }, weights: {}, ketones: [], energy: {}, foods: [], favorites: [] });
+const emptyDb = () => ({ settings: { ...DEFAULT_SETTINGS }, weights: {}, ketones: [], energy: {}, foods: [], favorites: [], products: {}, fasts: [], fast: null });
 
 function load() {
   try {
@@ -148,11 +149,6 @@ function chart(o) {
   for (let v = lo; v <= hi + step / 2; v += step) {
     g += `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="grid"/><text x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" class="ax" text-anchor="end">${fmt(v, dec)}</text>`;
   }
-  for (const r of o.refs || []) {
-    if (r.y == null) continue;
-    g += `<line x1="${L}" x2="${W - R}" y1="${y(r.y).toFixed(1)}" y2="${y(r.y).toFixed(1)}" class="ref" style="stroke:${r.color}"/>`;
-    if (r.label) g += `<text x="${W - R}" y="${(y(r.y) - 3).toFixed(1)}" text-anchor="end" class="reflbl" style="fill:${r.color}">${h(r.label)}</text>`;
-  }
   const base = new Array(n).fill(0);
   const bw = Math.max(1.5, Math.min(cw * 0.62, 26));
   for (const s of o.series.filter(s => s.type === 'bar')) {
@@ -179,6 +175,11 @@ function chart(o) {
       if (v == null) return;
       g += `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${rr}" style="fill:${s.color}" opacity="${s.opacity || 1}"><title>${h(o.labels[i])}: ${fmt(v, s.dec || 0)} ${s.name || ''}</title></circle>`;
     });
+  }
+  for (const r of o.refs || []) {
+    if (r.y == null) continue;
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(r.y).toFixed(1)}" y2="${y(r.y).toFixed(1)}" class="ref" style="stroke:${r.color}"/>`;
+    if (r.label) g += `<text x="${W - R}" y="${(y(r.y) - 3).toFixed(1)}" text-anchor="end" class="reflbl" style="fill:${r.color}">${h(r.label)}</text>`;
   }
   const every = Math.ceil(n / (o.maxLabels || 7));
   o.labels.forEach((lb, i) => {
@@ -234,6 +235,7 @@ function viewToday() {
   const kets = db.ketones.filter(k => k.date === d).sort((a, b) => a.time.localeCompare(b.time));
   const lastK = kets.at(-1);
   let out = banners();
+  if (d === today()) out += fastCard();
 
   // Težina
   const diff = w != null && prev ? w - prev.kg : null;
@@ -268,7 +270,7 @@ function viewToday() {
       ${pbar('Proteini', t.protein, s.proteinTarget, 'var(--c-prot)')}
       ${pbar('Masti', t.fat, s.fatTarget, 'var(--c-fat)')}
     </div>
-    <div class="btns" style="margin-top:12px"><button class="btn primary block" data-action="add-food">+ Dodaj hranu</button></div>
+    <div class="btns" style="margin-top:12px"><button class="btn primary" style="flex:1" data-action="add-food">+ Dodaj hranu</button><button class="btn" data-action="scan">Skeniraj</button></div>
   </section>`;
 
   // Energija
@@ -350,7 +352,7 @@ function viewFood() {
     <div class="card-h"><h2>Brzi unos</h2>${db.favorites.length ? '<button class="btn ghost sm" data-action="edit-favs">Favoriti</button>' : ''}</div>
     ${state.quick.length ? `<div class="chips">${state.quick.map((q, i) => `<button class="chip ${q.fav ? 'fav' : ''}" data-action="quick" data-i="${i}">${h(q.name)}</button>`).join('')}</div>`
       : '<p class="muted" style="margin:0">Ovdje će se pojaviti favoriti i nedavno unesena hrana.</p>'}
-    <button class="btn primary block" style="margin-top:10px" data-action="add-food">+ Dodaj hranu</button>
+    <div class="btns" style="margin-top:10px"><button class="btn primary" style="flex:1" data-action="add-food">+ Dodaj hranu</button><button class="btn" data-action="scan">Skeniraj</button></div>
   </section>
   <section class="card">
     <div class="card-h"><h2>Unosi</h2><span class="muted">${fmt(t.kcal)} kcal</span></div>
@@ -587,6 +589,7 @@ function viewAnalysis() {
       <thead><tr><th>Dan</th><th>UH</th><th>M</th><th>P</th><th>kcal</th><th>Potr.</th><th>Bil.</th><th>kg</th><th>Ket</th></tr></thead>
       <tbody>${tbl}</tbody></table></div>
   </section>
+  ${fastWeekCard(ws, we)}
   <section class="card"><div class="card-h"><h2>Trend zadnjih 8 tjedana</h2></div>
     ${chart({ labels: wk.map(x => shortDate(x.w)), h: 150, maxLabels: 8, series: [{ type: 'line', values: wk.map(x => x.weight), color: 'var(--c-weight)', span: true }, { type: 'dots', values: wk.map(x => x.weight), color: 'var(--c-weight)', dec: 1, name: 'kg' }], empty: 'Premalo mjerenja težine.' })}
     <div class="tbl-wrap"><table class="tbl" style="margin-top:8px">
@@ -602,7 +605,8 @@ let dlgSubmit = null;
 function openDialog(html, onSubmit, onReady) {
   dlg.innerHTML = `<form class="sheet" method="dialog" novalidate>${html}</form>`;
   dlgSubmit = onSubmit;
-  dlg.showModal();
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
   onReady && onReady(dlg.querySelector('form'));
 }
 function closeDialog() { dlg.close(); dlg.innerHTML = ''; }
@@ -620,12 +624,12 @@ function openFood(pre = {}, editId = null) {
   const v = k => pre[k] != null && pre[k] !== '' ? fmt(pre[k], 1).replace(/\s/g, '') : '';
   const inc = editId ? pre.inc : db.settings.carbsIncludeFiber;
   openDialog(`
-    <h2>${editId ? 'Uredi unos' : 'Dodaj hranu'}</h2>
+    <h2>${editId ? 'Uredi unos' : 'Dodaj hranu'}</h2>${pre.code ? `<p class="muted small" style="margin:-6px 0 10px">Barkod ${h(pre.code)}</p>` : ''}
     <div class="stack">
       <label>Naziv<input name="name" required value="${h(pre.name || '')}" placeholder="npr. Jaja, slanina, avokado" autocomplete="off"></label>
       <div class="grid2">
         <label class="chk" style="align-self:end;padding-bottom:10px"><input type="checkbox" name="per100" ${per100 ? 'checked' : ''}> Vrijednosti na 100 g</label>
-        <label>Količina (g)<input name="grams" inputmode="decimal" value="${v('grams')}" placeholder="${per100 ? '100' : 'neobavezno'}"></label>
+        <label>Količina (g)<input name="grams" inputmode="decimal" value="${pre.grams ? Math.round(pre.grams) : ''}" placeholder="${per100 ? '100' : 'neobavezno'}"></label>
       </div>
       <div class="grid4">
         <label>UH (g)<input name="carbs" inputmode="decimal" value="${v('carbs')}" placeholder="0"></label>
@@ -651,13 +655,15 @@ function openFood(pre = {}, editId = null) {
       const vals = { carbs: num(fd.carbs) || 0, fiber: num(fd.fiber) || 0, fat: num(fd.fat) || 0, protein: num(fd.protein) || 0 };
       const isPer = !!fd.per100, g = num(fd.grams);
       const old = editId ? db.foods.find(f => f.id === editId) : null;
-      let item = { id: editId || uid(), date: old ? old.date : state.date, time: fd.time || nowTime(), name, inc: old ? !!old.inc : !!db.settings.carbsIncludeFiber };
+      const code = pre.code || old?.code || null;
+      let item = { id: editId || uid(), date: old ? old.date : state.date, time: fd.time || nowTime(), name, inc: old ? !!old.inc : !!db.settings.carbsIncludeFiber, ...(code ? { code } : {}) };
       if (isPer) {
         const grams = g || 100, k = grams / 100;
         item = { ...item, carbs: r1(vals.carbs * k), fiber: r1(vals.fiber * k), fat: r1(vals.fat * k), protein: r1(vals.protein * k), grams, src: vals };
       } else item = { ...item, ...vals, grams: g || null };
       if (old) db.foods[db.foods.indexOf(old)] = item; else db.foods.push(item);
       if (fd.fav) saveFavorite(item);
+      if (code && isPer) db.products[code] = { name, ...vals, grams: g || 100, inc: item.inc };
       save();
       toast(editId ? 'Spremljeno' : `Dodano: ${name}`);
     },
@@ -886,6 +892,326 @@ async function hcSync(manual = false, days = 7) {
   }
 }
 
+/* ================= Baza namirnica i pretraga ================= */
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+function searchItems(q) {
+  const n = norm(q).trim(), out = [], seen = new Set();
+  const push = (it, tag) => {
+    const k = norm(it.name);
+    if (seen.has(k) || (n && !k.includes(n))) return;
+    seen.add(k); out.push({ ...it, tag });
+  };
+  db.favorites.forEach(f => push(f, 'fav'));
+  Object.entries(db.products).forEach(([code, p]) => push({ ...p, code, per100: true }, 'code'));
+  quickItems().filter(x => !x.fav).forEach(r => push(r, 'recent'));
+  FOOD_DB.forEach(([name, carbs, fiber, fat, protein, grams]) => push({ name, carbs, fiber, fat, protein, grams, per100: true }, 'db'));
+  return out.slice(0, 40);
+}
+const TAGS = { fav: '★', code: '▥', recent: '↺', db: '', off: '' };
+function resultRows(list, src) {
+  return list.map((it, i) => `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
+    <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)}</div>
+    <div class="muted small">${it.per100 ? 'na 100 g' : 'porcija'} · UH ${fmt(netOf(it), 1)} · M ${fmt(it.fat, 1)} · P ${fmt(it.protein, 1)} · ${fmt(kcalOf(it))} kcal</div>
+  </button></li>`).join('');
+}
+function openFoodSearch() {
+  state.offres = [];
+  openDialog(`<h2>Dodaj hranu</h2>
+    <div class="row">
+      <input name="q" type="search" placeholder="Traži namirnicu…" autocomplete="off" enterkeyhint="search">
+      <button type="button" class="btn" data-action="scan">Skeniraj</button>
+    </div>
+    <ul class="list" id="sres" style="margin-top:6px"></ul>
+    <div id="offres"></div>
+    <div class="btns" style="margin-top:10px">
+      <button type="button" class="btn" data-action="off-search">Traži online</button>
+      <button type="button" class="btn" data-action="food-manual">Ručni unos</button>
+      <button type="button" class="btn ghost" data-action="close" style="margin-left:auto">Zatvori</button>
+    </div>
+    <p class="muted small" style="margin:8px 0 0">★ favoriti · ▥ skenirani proizvodi · ↺ nedavno. Online pretraga koristi bazu Open Food Facts.</p>`,
+    () => { offSearch(); return false; },
+    form => {
+      const upd = () => {
+        state.sres = searchItems(form.q.value);
+        $('#sres').innerHTML = state.sres.length ? resultRows(state.sres, 's') : '<li class="muted small">Nema rezultata u lokalnoj bazi – probaj online pretragu ili ručni unos.</li>';
+      };
+      form.q.addEventListener('input', upd);
+      upd();
+    });
+}
+
+/* Open Food Facts */
+const OFF_FIELDS = 'code,product_name,product_name_hr,generic_name,brands,nutriments,serving_quantity';
+async function offFetch(url) {
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
+  try {
+    const r = await fetch(url, { signal: ac.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+function offToItem(p, code) {
+  const n = p.nutriments || {};
+  const v = k => { const x = n[k + '_100g']; return x == null || x === '' || isNaN(+x) ? null : +x; };
+  if (v('carbohydrates') == null && v('fat') == null && v('proteins') == null) return null;
+  const brand = p.brands ? String(p.brands).split(',')[0].trim() : '';
+  const name = [p.product_name_hr || p.product_name || p.generic_name || 'Proizvod', brand].filter(Boolean).join(' – ');
+  return { name, carbs: r1(v('carbohydrates') || 0), fiber: r1(v('fiber') || 0), fat: r1(v('fat') || 0), protein: r1(v('proteins') || 0),
+    grams: +p.serving_quantity > 0 ? Math.round(+p.serving_quantity) : 100, per100: true, code: code || p.code || null, tag: 'off' };
+}
+const offErr = e => e.name === 'AbortError' ? 'isteklo vrijeme' : navigator.onLine === false ? 'nema interneta' : e.message;
+async function offSearch() {
+  const q = (dlg.querySelector('[name=q]') || {}).value?.trim();
+  const box = $('#offres');
+  if (!box) return;
+  if (!q || q.length < 2) { toast('Upiši barem 2 slova'); return; }
+  box.innerHTML = '<p class="muted small">Tražim online…</p>';
+  try {
+    const j = await offFetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
+    state.offres = (j.products || []).map(p => offToItem(p)).filter(Boolean);
+    if (!$('#offres')) return;
+    $('#offres').innerHTML = state.offres.length
+      ? `<h3 style="font-size:13px;color:var(--muted);margin:12px 0 0">Open Food Facts</h3><ul class="list">${resultRows(state.offres, 'o')}</ul>`
+      : '<p class="muted small">Online nema rezultata.</p>';
+  } catch (e) {
+    if ($('#offres')) $('#offres').innerHTML = `<p class="muted small">Online pretraga nije uspjela (${h(offErr(e))}).</p>`;
+  }
+}
+async function lookupBarcode(code) {
+  const known = db.products[code];
+  if (known) return openFood({ ...known, code, per100: true });
+  const msg = $('#scanmsg');
+  if (msg) msg.textContent = `Tražim proizvod ${code}…`;
+  try {
+    const j = await offFetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`);
+    const it = j.status === 1 && j.product ? offToItem(j.product, code) : null;
+    if (it) return openFood(it);
+    toast('Proizvod nije u bazi – upiši vrijednosti s deklaracije');
+  } catch (e) {
+    toast('Pretraga nije uspjela (' + offErr(e) + ')');
+  }
+  openFood({ code, per100: true });
+}
+
+/* ================= Skener barkoda ================= */
+const scan = { stream: null, timer: 0, reader: null, done: true };
+function stopScanner() {
+  scan.done = true;
+  clearTimeout(scan.timer);
+  try { scan.reader && scan.reader.reset(); } catch { /* ignore */ }
+  scan.reader = null;
+  if (scan.stream) scan.stream.getTracks().forEach(t => t.stop());
+  scan.stream = null;
+}
+dlg.addEventListener('close', stopScanner);
+const loadScript = src => new Promise((ok, fail) => {
+  const s = document.createElement('script');
+  s.src = src; s.onload = ok; s.onerror = () => fail(new Error('Ne mogu učitati ' + src));
+  document.head.appendChild(s);
+});
+async function openScanner() {
+  stopScanner();
+  openDialog(`<h2>Skeniraj barkod</h2>
+    <div class="scanbox"><video id="scanv" playsinline muted></video><i></i></div>
+    <p class="muted small" id="scanmsg">Pokrećem kameru…</p>
+    <div class="row">
+      <input name="code" inputmode="numeric" placeholder="ili upiši barkod" autocomplete="off">
+      <button class="btn">Traži</button>
+    </div>
+    <div class="btns end" style="margin-top:10px"><button type="button" class="btn" data-action="close">Odustani</button></div>`,
+    fd => {
+      const c = (fd.code || '').replace(/\D/g, '');
+      if (c.length < 8) { toast('Barkod ima 8–14 znamenki'); return false; }
+      stopScanner(); lookupBarcode(c);
+      return false;
+    });
+  scan.done = false;
+  const msg = t => { const m = $('#scanmsg'); if (m) m.textContent = t; };
+  if (!navigator.mediaDevices?.getUserMedia) return msg('Kamera nije dostupna u ovom pregledniku – upiši barkod ručno.');
+  try {
+    scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) {
+    return msg(e.name === 'NotAllowedError' ? 'Pristup kameri nije dopušten – dopusti ga u postavkama ili upiši barkod.' : 'Kamera nije dostupna – upiši barkod ručno.');
+  }
+  const video = $('#scanv');
+  if (scan.done || !video) return stopScanner();
+  video.srcObject = scan.stream;
+  await video.play().catch(() => {});
+  msg('Usmjeri kameru prema barkodu…');
+  const found = code => {
+    if (scan.done) return;
+    stopScanner();
+    if (navigator.vibrate) navigator.vibrate(60);
+    lookupBarcode(code);
+  };
+  if ('BarcodeDetector' in window) {
+    try {
+      const det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
+      const tick = async () => {
+        if (scan.done) return;
+        try { const r = await det.detect(video); if (r.length) return found(r[0].rawValue); } catch { /* sljedeći okvir */ }
+        scan.timer = setTimeout(tick, 200);
+      };
+      return tick();
+    } catch { /* format nije podržan – ZXing */ }
+  }
+  try {
+    if (!window.ZXing) await loadScript('vendor/zxing.min.js');
+  } catch (e) { return msg('Skener se nije učitao – upiši barkod ručno.'); }
+  if (scan.done) return;
+  const F = ZXing.BarcodeFormat, hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128]);
+  scan.reader = new ZXing.BrowserMultiFormatReader(hints);
+  scan.reader.decodeFromStream(scan.stream, video, r => { if (r) found(r.getText()); }).catch(() => {});
+}
+
+/* ================= Post (intermitentni post) ================= */
+const FAST_GOALS = [12, 14, 16, 18, 20, 24];
+const FAST_PHASES = [
+  [0, 'Probava zadnjeg obroka'],
+  [4, 'Razina inzulina pada, tijelo troši zalihe glikogena'],
+  [12, 'Pojačano sagorijevanje masti i stvaranje ketona'],
+  [18, 'Duboka ketoza'],
+  [24, 'Produženi post – pij vodu i nadoknadi elektrolite (sol, magnezij, kalij)']
+];
+const durTxt = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return `${Math.floor(m / 60)} h ${pad(m % 60)} min`; };
+const clockTxt = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+const hmTxt = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const whenTxt = t => { const d = iso(new Date(t)); return (d === today() ? '' : d === addDays(today(), -1) ? 'jučer ' : shortDate(d) + ' ') + hmTxt(t); };
+const toLocalInput = t => { const d = new Date(t); return `${iso(d)}T${hmTxt(t)}`; };
+function lastMealTime() {
+  const f = db.foods.filter(x => x.time).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))[0];
+  if (!f) return null;
+  const d = parseISO(f.date), [H, M] = f.time.split(':').map(Number);
+  d.setHours(H, M, 0, 0);
+  const t = d.getTime();
+  return t <= Date.now() && Date.now() - t < 48 * 3600e3 ? t : null;
+}
+function fastState(f = db.fast) {
+  const el = Date.now() - f.start, goalMs = f.goal * 3600e3, end = f.start + goalMs;
+  const phase = FAST_PHASES.filter(p => el / 3600e3 >= p[0]).at(-1)[1];
+  const info = el < goalMs
+    ? `Početak ${whenTxt(f.start)} · cilj u ${whenTxt(end)} (još ${durTxt(end - Date.now())})`
+    : `Cilj od ${f.goal} h postignut u ${whenTxt(end)} · +${durTxt(el - goalMs)}`;
+  return { el, pct: Math.min(1, el / goalMs), done: el >= goalMs, phase, info };
+}
+function fastRing(pct, done) {
+  const r = 40, c = 2 * Math.PI * r;
+  return `<svg viewBox="0 0 100 100" width="92" height="92" class="donut"><circle cx="50" cy="50" r="${r}" fill="none" style="stroke:var(--soft)" stroke-width="10"/>
+    <circle id="fastRing" cx="50" cy="50" r="${r}" fill="none" style="stroke:${done ? 'var(--good)' : 'var(--accent)'}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 50 50)"/>
+    <text id="fastPct" x="50" y="55" text-anchor="middle" style="fill:var(--ink);font-size:16px;font-weight:700">${Math.round(pct * 100)}%</text></svg>`;
+}
+function fastCard() {
+  if (db.fast) {
+    const st = fastState();
+    return `<section class="card" id="fastcard">
+      <div class="card-h"><h2>Post</h2><span class="muted">cilj ${db.fast.goal} h</span></div>
+      <div class="carb-hero">${fastRing(st.pct, st.done)}
+        <div style="flex:1;min-width:0">
+          <div class="big" id="fastClock">${clockTxt(st.el)}</div>
+          <div class="muted small" id="fastInfo">${st.info}</div>
+          <div class="small" id="fastPhase" style="margin-top:4px">${st.phase}</div>
+        </div></div>
+      <div class="btns" style="margin-top:12px"><button class="btn primary" style="flex:1" data-action="fast-end">Završi post</button><button class="btn" data-action="fast-edit">Uredi</button></div>
+    </section>`;
+  }
+  const last = db.fasts.at(-1), meal = lastMealTime(), g = db.settings.fastGoal;
+  return `<section class="card">
+    <div class="card-h"><h2>Post</h2><span class="muted">${last ? `zadnji: ${durTxt(last.end - last.start)}` : ''}</span></div>
+    <div class="seg" style="display:flex;overflow-x:auto">${FAST_GOALS.map(v => `<button class="${g === v ? 'on' : ''}" data-action="fast-goal" data-v="${v}">${v === 24 ? '24 h' : `${v}:${24 - v}`}</button>`).join('')}</div>
+    <div class="btns" style="margin-top:12px">
+      <button class="btn primary" style="flex:1" data-action="fast-start" data-from="now">Započni sada</button>
+      ${meal ? `<button class="btn" data-action="fast-start" data-from="meal">Od zadnjeg obroka (${whenTxt(meal)})</button>` : ''}
+    </div>
+  </section>`;
+}
+function tickFast() {
+  if (!db.fast) return;
+  const c = $('#fastClock');
+  if (!c) return;
+  const st = fastState(), r = $('#fastRing'), c2 = 2 * Math.PI * 40;
+  c.textContent = clockTxt(st.el);
+  $('#fastInfo').textContent = st.info;
+  $('#fastPhase').textContent = st.phase;
+  $('#fastPct').textContent = Math.round(st.pct * 100) + '%';
+  r.setAttribute('stroke-dasharray', `${(c2 * st.pct).toFixed(1)} ${c2.toFixed(1)}`);
+  r.style.stroke = st.done ? 'var(--good)' : 'var(--accent)';
+  if (st.done && !db.fast.notified) { db.fast.notified = true; save(); toast(`Cilj od ${db.fast.goal} h je ostvaren!`); }
+}
+setInterval(tickFast, 1000);
+
+const LN = NATIVE ? (window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || window.Capacitor.registerPlugin('LocalNotifications') : null;
+const FAST_NOTIF = 1601;
+async function cancelFastNotif() {
+  if (LN) try { await LN.cancel({ notifications: [{ id: FAST_NOTIF }] }); } catch { /* nema zakazane */ }
+}
+async function scheduleFastNotif() {
+  if (!LN || !db.fast) return;
+  try {
+    let p = await LN.checkPermissions();
+    if (p.display !== 'granted') p = await LN.requestPermissions();
+    if (p.display !== 'granted') return;
+    await cancelFastNotif();
+    const at = new Date(db.fast.start + db.fast.goal * 3600e3);
+    if (at <= new Date()) return;
+    await LN.schedule({ notifications: [{ id: FAST_NOTIF, title: 'Post je završen', body: `Cilj od ${db.fast.goal} h je ostvaren. Vrijeme za obrok!`, schedule: { at, allowWhileIdle: true } }] });
+  } catch (e) { console.error(e); }
+}
+function startFast(from) {
+  const start = from === 'meal' ? lastMealTime() || Date.now() : Date.now();
+  db.fast = { start, goal: db.settings.fastGoal };
+  save(); render(); scheduleFastNotif();
+  toast(`Post započet · cilj ${db.fast.goal} h`);
+}
+function endFast() {
+  const f = db.fast;
+  if (!f) return;
+  const el = Date.now() - f.start;
+  if (el < f.goal * 3600e3 && !confirm(`Prošlo je ${durTxt(el)} od ciljanih ${f.goal} h. Završiti post?`)) return;
+  if (el >= 10 * 60e3) db.fasts.push({ id: uid(), start: f.start, end: Date.now(), goal: f.goal });
+  db.fast = null;
+  save(); cancelFastNotif(); render();
+  toast(`Post: ${durTxt(el)}`);
+}
+function openFastEdit() {
+  if (!db.fast) return;
+  openDialog(`<h2>Uredi post</h2>
+    <div class="stack">
+      <label>Početak<input type="datetime-local" name="start" value="${toLocalInput(db.fast.start)}" max="${toLocalInput(Date.now())}"></label>
+      <label>Cilj (sati)<input name="goal" inputmode="numeric" value="${db.fast.goal}"></label>
+      <div class="btns end">
+        <button type="button" class="btn danger" data-action="fast-cancel" style="margin-right:auto">Poništi post</button>
+        <button type="button" class="btn" data-action="close">Odustani</button><button class="btn primary">Spremi</button>
+      </div>
+    </div>`,
+    fd => {
+      const t = new Date(fd.start).getTime(), g = num(fd.goal);
+      if (!t || t > Date.now()) { toast('Početak ne može biti u budućnosti'); return false; }
+      if (!g || g < 1 || g > 120) { toast('Cilj mora biti između 1 i 120 h'); return false; }
+      db.fast = { start: t, goal: g };
+      save(); scheduleFastNotif();
+    });
+}
+function fastWeekCard(ws, we) {
+  const wf = db.fasts.filter(f => { const d = iso(new Date(f.end)); return d >= ws && d <= we; });
+  if (!wf.length && !db.fast) return '';
+  const hours = [...Array(7)].map((_, i) => {
+    const d = addDays(ws, i), l = wf.filter(f => iso(new Date(f.end)) === d);
+    return l.length ? r1(Math.max(...l.map(f => (f.end - f.start) / 3600e3))) : null;
+  });
+  const durs = wf.map(f => f.end - f.start), reached = wf.filter(f => f.end - f.start >= f.goal * 3600e3).length;
+  return `<section class="card"><div class="card-h"><h2>Post</h2><span class="muted">${wf.length ? `cilj ostvaren ${reached}/${wf.length}` : ''}</span></div>
+    ${wf.length ? `<div class="tiles">
+      <div class="tile"><b>${wf.length}</b><span>postova</span></div>
+      <div class="tile"><b>${fmt(mean(durs) / 3600e3, 1)} h</b><span>Ø trajanje</span></div>
+      <div class="tile"><b>${fmt(Math.max(...durs) / 3600e3, 1)} h</b><span>najduži</span></div></div>
+    ${chart({ labels: [...Array(7)].map((_, i) => DAYS[parseISO(addDays(ws, i)).getDay()]), h: 140, zero: true, series: [{ type: 'bar', values: hours, color: 'var(--accent)', dec: 1, name: 'h' }], refs: [{ y: db.settings.fastGoal, color: 'var(--muted)', label: 'cilj ' + db.settings.fastGoal + ' h' }] })}
+    <ul class="list">${wf.slice().reverse().map(f => `<li><div class="grow"><b>${durTxt(f.end - f.start)}</b> <span class="muted small">cilj ${f.goal} h</span><div class="muted small">${dayLabel(iso(new Date(f.start)))} ${hmTxt(f.start)} → ${hmTxt(f.end)}</div></div>
+      <button class="x-btn" data-action="del-fast" data-id="${f.id}" aria-label="Obriši">✕</button></li>`).join('')}</ul>`
+    : '<p class="muted" style="margin:0">Ovaj tjedan još nema završenih postova.</p>'}
+  </section>`;
+}
+
 /* ================= Sigurnosna kopija ================= */
 function exportData() {
   db.settings.lastBackup = today(); save();
@@ -926,7 +1252,17 @@ const actions = {
   },
   'prev-week': () => { state.week = addDays(state.week, -7); render(); },
   'next-week': () => { state.week = addDays(state.week, 7); render(); },
-  'add-food': () => openFood(),
+  'add-food': openFoodSearch,
+  'food-manual': () => openFood({ name: (dlg.querySelector('[name=q]') || {}).value || '' }),
+  scan: openScanner,
+  'off-search': offSearch,
+  pick: el => { const it = (el.dataset.src === 'o' ? state.offres : state.sres)[+el.dataset.i]; if (it) openFood({ ...it, fav: false, time: undefined }); },
+  'fast-goal': el => { db.settings.fastGoal = +el.dataset.v; save(); render(); },
+  'fast-start': el => startFast(el.dataset.from),
+  'fast-end': endFast,
+  'fast-edit': openFastEdit,
+  'fast-cancel': () => { if (confirm('Poništiti trenutni post bez spremanja?')) { db.fast = null; cancelFastNotif(); save(); closeDialog(); render(); } },
+  'del-fast': el => { if (confirm('Obrisati ovaj post?')) { db.fasts = db.fasts.filter(f => f.id !== el.dataset.id); save(); render(); } },
   'edit-food': el => { const f = db.foods.find(x => x.id === el.dataset.id); if (f) openFood(f.src ? { ...f, ...f.src, per100: true } : f, f.id); },
   'del-food': el => { db.foods = db.foods.filter(f => f.id !== el.dataset.id); save(); closeDialog(); render(); toast('Obrisano'); },
   quick: el => { const q = state.quick[+el.dataset.i]; if (q) openFood({ ...q, fav: false, time: undefined }); },

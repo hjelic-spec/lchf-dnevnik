@@ -4,6 +4,9 @@ Jednostavna aplikacija za kontrolu težine na LCHF / keto prehrani.
 
 - **Danas** – brzi unos težine, neto ugljikohidrati prema dnevnom limitu, makronutrijenti, potrošene kalorije i energetska bilanca, zadnje mjerenje ketona
 - **Hrana** – unos ugljikohidrata, vlakana, masti i proteina (po porciji ili na 100 g), favoriti i nedavna hrana za unos jednim dodirom
+- **Baza namirnica** – 15 osnovnih LCHF namirnica + online pretraga [Open Food Facts](https://world.openfoodfacts.org)
+- **Skener barkoda** – kamera prepozna EAN kod, vrijednosti se povuku iz Open Food Factsa i zapamte za sljedeći put
+- **Post** – timer s ciljem (12–24 h), početak od zadnjeg obroka, faze posta, obavijest kad je cilj ostvaren (Android) i tjedni pregled u Analizi
 - **Težina** – graf s 7-dnevnim prosjekom, tempo kg/tjedan, BMI, procjena kad ćeš doći do cilja
 - **Ketoni** – Keto-Diastix trakice (ketoni + glukoza), pregled zadnjih 30 dana, upozorenja
 - **Analiza** – tjedni prosjeci, automatski uvidi, grafovi, tablica po danima i trend zadnjih 8 tjedana
