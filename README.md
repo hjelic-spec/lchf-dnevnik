@@ -12,7 +12,7 @@ Svi podaci ostaju **samo na uređaju**. Sigurnosnu kopiju napraviš u Postavke �
 
 ## Android aplikacija (preporučeno – automatski uvoz iz Health Connecta)
 
-1. Na mobitelu otvori stranicu [Releases](https://github.com/hjelic-spec/lchf-dnevnik/releases/latest) i preuzmi `app-debug.apk`.
+1. Na mobitelu otvori stranicu [Releases](https://github.com/hjelic-spec/lchf-dnevnik/releases/latest) i preuzmi `lchf-dnevnik.apk`.
 2. Otvori datoteku i dopusti instalaciju iz tog izvora (Chrome / Datoteke → „Dopusti iz ovog izvora“).
 3. Pokreni aplikaciju i dodirni **Dopusti** → odobri čitanje kalorija, koraka i težine.
 4. Provjeri da tvoja aplikacija za sat ili aktivnost (Samsung Health, Google Fit, Fitbit, Garmin…) šalje podatke u Health Connect: *Postavke → Health Connect → Dozvole aplikacija*.
