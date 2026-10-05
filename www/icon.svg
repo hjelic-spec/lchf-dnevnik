@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#2f7d4f"/><text x="50" y="62" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-weight="700" font-size="36" fill="#fff">LC</text><circle cx="50" cy="78" r="3.8" fill="#bee278"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#FFC4D3"/><g transform="translate(0 0) scale(1)">
+<ellipse cx="256" cy="70" rx="250" ry="110" fill="#ffffff" opacity="0.16"/>
+<ellipse cx="96" cy="400" rx="40" ry="24" fill="#FF6F96" opacity="0.45"/>
+<ellipse cx="416" cy="400" rx="40" ry="24" fill="#FF6F96" opacity="0.45"/>
+<ellipse cx="256" cy="282" rx="178" ry="138" fill="#E8668C"/>
+<ellipse cx="256" cy="266" rx="176" ry="134" fill="#FF8DAD"/>
+<ellipse cx="220" cy="186" rx="96" ry="28" fill="#ffffff" opacity="0.42"/>
+<ellipse cx="190" cy="272" rx="34" ry="52" fill="#B73861"/>
+<ellipse cx="322" cy="272" rx="34" ry="52" fill="#B73861"/>
+<ellipse cx="182" cy="252" rx="10" ry="16" fill="#ffffff" opacity="0.25"/>
+<ellipse cx="314" cy="252" rx="10" ry="16" fill="#ffffff" opacity="0.25"/>
+<path d="M226 448 Q256 470 286 448" stroke="#B73861" stroke-width="10" fill="none" stroke-linecap="round"/></g></svg>
