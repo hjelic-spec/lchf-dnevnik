@@ -1220,7 +1220,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(db, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `lchf-dnevnik-${today()}.json`;
+  a.download = `porki-${today()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast('Kopija izvezena');

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">LCHF Dnevnik</string>
-    <string name="title_activity_main">LCHF Dnevnik</string>
+    <string name="app_name">Porki</string>
+    <string name="title_activity_main">Porki</string>
     <string name="package_name">hr.lchf.dnevnik</string>
     <string name="custom_url_scheme">hr.lchf.dnevnik</string>
 </resources>

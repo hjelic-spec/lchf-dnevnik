@@ -1,8 +1,8 @@
 {
   "appId": "hr.lchf.dnevnik",
-  "appName": "LCHF Dnevnik",
+  "appName": "Porki",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#f5f3ee"
+    "backgroundColor": "#fff6f8"
   }
 }
