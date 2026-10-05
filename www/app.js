@@ -208,7 +208,7 @@ function pbar(label, val, target, color, limit = false) {
 
 /* ================= Stanje i iscrtavanje ================= */
 const state = { tab: 'today', date: today(), week: weekStart(today()), wRange: 90 };
-const APK_URL = 'https://github.com/hjelic-spec/lchf-dnevnik/releases/latest';
+const APK_URL = 'https://github.com/hjelic-spec/porki/releases/latest';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 let installEvt = null; // Chrome "Instaliraj aplikaciju" (samo web)
 
