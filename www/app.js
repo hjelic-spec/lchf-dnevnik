@@ -895,10 +895,12 @@ async function hcSync(manual = false, days = 7) {
 /* ================= Baza namirnica i pretraga ================= */
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
 function searchItems(q) {
-  const n = norm(q).trim(), out = [], seen = new Set();
+  // svaka riječ upita mora se pojaviti; zadnje slovo duljih riječi se zanemaruje (orah → orasi)
+  const words = norm(q).split(/\s+/).filter(Boolean).map(w => w.length >= 4 ? w.slice(0, -1) : w);
+  const out = [], seen = new Set();
   const push = (it, tag) => {
     const k = norm(it.name);
-    if (seen.has(k) || (n && !k.includes(n))) return;
+    if (seen.has(k) || !words.every(w => k.includes(w))) return;
     seen.add(k); out.push({ ...it, tag });
   };
   db.favorites.forEach(f => push(f, 'fav'));
