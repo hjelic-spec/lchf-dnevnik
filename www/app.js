@@ -894,6 +894,7 @@ async function hcSync(manual = false, days = 7) {
 
 /* ================= Baza namirnica i pretraga ================= */
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+const dbItem = ([name, carbs, fiber, fat, protein, grams, level, section]) => ({ name, carbs, fiber, fat, protein, grams, per100: true, level, section, tag: 'db' });
 function searchItems(q) {
   // svaka riječ upita mora se pojaviti; zadnje slovo duljih riječi se zanemaruje (orah → orasi)
   const words = norm(q).split(/\s+/).filter(Boolean).map(w => w.length >= 4 ? w.slice(0, -1) : w);
@@ -906,15 +907,28 @@ function searchItems(q) {
   db.favorites.forEach(f => push(f, 'fav'));
   Object.entries(db.products).forEach(([code, p]) => push({ ...p, code, per100: true }, 'code'));
   quickItems().filter(x => !x.fav).forEach(r => push(r, 'recent'));
-  FOOD_DB.forEach(([name, carbs, fiber, fat, protein, grams]) => push({ name, carbs, fiber, fat, protein, grams, per100: true }, 'db'));
+  if (!words.length) return out.slice(0, 12); // bez upita: samo moje namirnice, ispod je popis po sekcijama
+  FOOD_DB.forEach(row => push(dbItem(row), 'db'));
   return out.slice(0, 40);
 }
 const TAGS = { fav: '★', code: '▥', recent: '↺', db: '', off: '' };
-function resultRows(list, src) {
-  return list.map((it, i) => `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
-    <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)}</div>
-    <div class="muted small">${it.per100 ? 'na 100 g' : 'porcija'} · UH ${fmt(netOf(it), 1)} · M ${fmt(it.fat, 1)} · P ${fmt(it.protein, 1)} · ${fmt(kcalOf(it))} kcal</div>
-  </button></li>`).join('');
+const LEVELS = { limit: ['ograničeno', 'limit'], avoid: ['izbjegavati', 'avoid'] };
+const levelPill = l => LEVELS[l] ? `<span class="pill ${LEVELS[l][1]}">${LEVELS[l][0]}</span>` : '';
+function itemRow(it, src, i, sub = true) {
+  return `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
+    <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)} ${levelPill(it.level)}</div>
+    <div class="muted small">${it.per100 ? 'na 100 g' : 'porcija'} · UH ${fmt(netOf(it), 1)} · M ${fmt(it.fat, 1)} · P ${fmt(it.protein, 1)} · ${fmt(kcalOf(it))} kcal${sub && it.section ? ` · ${h(it.section)}` : ''}</div>
+  </button></li>`;
+}
+const resultRows = (list, src) => list.map((it, i) => itemRow(it, src, i)).join('');
+function foodSections() {
+  let idx = 0;
+  return FOOD_SECTIONS.map((s, si) => `<details class="fsec">
+    <summary><span>${si + 1}. ${h(s.title)}</span><span class="muted small">${s.groups.reduce((n, g) => n + g.items.length, 0)}</span></summary>
+    <p class="muted small fsec-intro">${h(s.intro)}</p>
+    ${s.groups.map(g => `<h4 class="fgrp">${h(g.title)} ${levelPill(g.level)}</h4>
+      <ul class="list">${g.items.map(row => itemRow(dbItem(row), 'd', idx++, false)).join('')}</ul>`).join('')}
+  </details>`).join('');
 }
 function openFoodSearch() {
   state.offres = [];
@@ -923,19 +937,23 @@ function openFoodSearch() {
       <input name="q" type="search" placeholder="Traži namirnicu…" autocomplete="off" enterkeyhint="search">
       <button type="button" class="btn" data-action="scan">Skeniraj</button>
     </div>
-    <ul class="list" id="sres" style="margin-top:6px"></ul>
+    <div id="sbody" style="margin-top:6px"></div>
     <div id="offres"></div>
     <div class="btns" style="margin-top:10px">
       <button type="button" class="btn" data-action="off-search">Traži online</button>
       <button type="button" class="btn" data-action="food-manual">Ručni unos</button>
       <button type="button" class="btn ghost" data-action="close" style="margin-left:auto">Zatvori</button>
     </div>
-    <p class="muted small" style="margin:8px 0 0">★ favoriti · ▥ skenirani proizvodi · ↺ nedavno. Online pretraga koristi bazu Open Food Facts.</p>`,
+    <p class="muted small" style="margin:8px 0 0">★ favoriti · ▥ skenirani proizvodi · ↺ nedavno. Vrijednosti su na 100 g i orijentacijske. Online pretraga koristi bazu Open Food Facts.</p>`,
     () => { offSearch(); return false; },
     form => {
       const upd = () => {
-        state.sres = searchItems(form.q.value);
-        $('#sres').innerHTML = state.sres.length ? resultRows(state.sres, 's') : '<li class="muted small">Nema rezultata u lokalnoj bazi – probaj online pretragu ili ručni unos.</li>';
+        const q = form.q.value.trim();
+        state.sres = searchItems(q);
+        $('#sbody').innerHTML = q
+          ? `<ul class="list">${state.sres.length ? resultRows(state.sres, 's') : '<li class="muted small">Nema rezultata u lokalnoj bazi – probaj online pretragu ili ručni unos.</li>'}</ul>`
+          : `${state.sres.length ? `<h3 class="fhead">Moje namirnice</h3><ul class="list">${resultRows(state.sres, 's')}</ul>` : ''}
+             <h3 class="fhead">Popis LCHF namirnica</h3>${foodSections()}`;
       };
       form.q.addEventListener('input', upd);
       upd();
@@ -1258,7 +1276,7 @@ const actions = {
   'food-manual': () => openFood({ name: (dlg.querySelector('[name=q]') || {}).value || '' }),
   scan: openScanner,
   'off-search': offSearch,
-  pick: el => { const it = (el.dataset.src === 'o' ? state.offres : state.sres)[+el.dataset.i]; if (it) openFood({ ...it, fav: false, time: undefined }); },
+  pick: el => { const i = +el.dataset.i, src = el.dataset.src; const it = src === 'd' ? (FOOD_DB[i] && dbItem(FOOD_DB[i])) : (src === 'o' ? state.offres : state.sres)[i]; if (it) openFood({ ...it, fav: false, time: undefined }); },
   'fast-goal': el => { db.settings.fastGoal = +el.dataset.v; save(); render(); },
   'fast-start': el => startFast(el.dataset.from),
   'fast-end': endFast,
