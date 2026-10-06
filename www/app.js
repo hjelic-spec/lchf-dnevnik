@@ -290,7 +290,7 @@ function viewToday() {
       </div>
       <p class="muted small" style="margin:8px 0 0">${parts.join(' · ')}</p>`
     : `<p class="muted" style="margin:0">${NATIVE ? 'Još nema podataka iz Health Connecta za ovaj dan.' : 'Još nema podataka za ovaj dan. Upiši potrošene kalorije iz Health Connecta / Samsung Healtha ili koristi Android aplikaciju za automatski uvoz.'}</p>`}
-    <div class="btns" style="margin-top:12px">${healthButtons()}<button class="btn" data-action="energy-edit">Ručno</button></div>
+    <div class="btns" style="margin-top:12px">${healthButtons()}<button class="btn" data-action="energy-edit">Ručno</button><button class="btn" data-action="energy-bulk">Unatrag</button></div>
   </section>`;
 
   // Ketoni
@@ -744,6 +744,51 @@ function openEnergy() {
       db.energy[state.date] = en;
       save(); toast('Spremljeno');
     });
+}
+
+/* Potrošnja za više dana unatrag */
+function openEnergyBulk(days = 30) {
+  const dates = [...Array(days)].map((_, i) => addDays(today(), -i));
+  const val = v => v == null ? '' : Math.round(v);
+  openDialog(`<h2>Potrošnja unatrag</h2>
+    <div class="seg" style="margin-bottom:10px">${[30, 60, 90].map(n => `<button type="button" class="${n === days ? 'on' : ''}" data-action="energy-bulk" data-days="${n}">${n} dana</button>`).join('')}</div>
+    <p class="muted small" style="margin:0 0 10px">Upiši ukupno potrošene kalorije (i po želji korake) za svaki dan. Prazna polja se preskaču, a obrisana vrijednost briše dan.${NATIVE ? ' Ručni unos ima prednost pred Health Connectom.' : ''}</p>
+    <div class="row" style="margin-bottom:12px">
+      <input name="fill" inputmode="numeric" placeholder="npr. 2200" autocomplete="off" aria-label="Kalorije za prazne dane">
+      <button type="button" class="btn" data-action="energy-fill">Popuni prazne dane</button>
+    </div>
+    <div class="bulk-head muted small"><span>Dan</span><span>Potrošeno kcal</span><span>Koraci</span></div>
+    <div class="bulk">${dates.map(d => {
+      const e = db.energy[d];
+      return `<div class="bulk-row">
+        <label for="t_${d}"><b>${DAYS[parseISO(d).getDay()]}</b> ${shortDate(d)}${e ? `<small class="muted">${e.src === 'health' ? 'HC' : 'ručno'}</small>` : ''}</label>
+        <input id="t_${d}" name="t_${d}" inputmode="numeric" value="${val(burnedOf(e))}" autocomplete="off">
+        <input name="s_${d}" inputmode="numeric" value="${val(e?.steps)}" autocomplete="off" aria-label="Koraci ${shortDate(d)}">
+      </div>`;
+    }).join('')}</div>
+    <div class="btns end" style="margin-top:12px"><button type="button" class="btn" data-action="close">Odustani</button><button class="btn primary">Spremi</button></div>`,
+    fd => {
+      const n = v => { const x = cleanNum(v, true); return x == null ? null : Math.round(x); };
+      let changed = 0;
+      for (const d of dates) {
+        const e = db.energy[d], t = n(fd['t_' + d]), s = n(fd['s_' + d]);
+        const oldT = burnedOf(e) == null ? null : Math.round(burnedOf(e)), oldS = e?.steps == null ? null : Math.round(e.steps);
+        if (t === oldT && s === oldS) continue;
+        changed++;
+        if (t == null && s == null) { delete db.energy[d]; continue; }
+        const keepParts = e && t === oldT; // ukupno nepromijenjeno – zadrži aktivno/mirovanje
+        db.energy[d] = { total: t, active: keepParts ? e.active ?? null : null, basal: keepParts ? e.basal ?? null : null, steps: s, src: 'manual' };
+      }
+      save();
+      toast(changed ? `Spremljeno za ${changed} ${changed === 1 ? 'dan' : 'dana'}` : 'Nema promjena');
+    });
+}
+function fillEmptyEnergy() {
+  const f = dlg.querySelector('[name=fill]'), v = cleanNum(f && f.value, true);
+  if (v == null || v < 500 || v > 10000) { toast('Upiši kalorije između 500 i 10 000'); return; }
+  let n = 0;
+  dlg.querySelectorAll('.bulk input[name^="t_"]').forEach(inp => { if (!inp.value.trim()) { inp.value = Math.round(v); n++; } });
+  toast(n ? `Popunjeno ${n} dana – spremi za potvrdu` : 'Nema praznih dana');
 }
 
 /* Postavke */
@@ -1300,8 +1345,10 @@ const actions = {
   'del-weight': el => { if (confirm(`Obrisati mjerenje za ${shortDate(el.dataset.d)}?`)) { delete db.weights[el.dataset.d]; save(); render(); } },
   wrange: el => { state.wRange = +el.dataset.v; render(); },
   'energy-edit': openEnergy,
+  'energy-bulk': el => openEnergyBulk(+el.dataset.days || 30),
+  'energy-fill': fillEmptyEnergy,
   'del-energy': () => { delete db.energy[state.date]; save(); closeDialog(); render(); },
-  'hc-sync': () => hcSync(true),
+  'hc-sync': () => hcSync(true, 30),
   'hc-perm': async () => { if (dlg.open) closeDialog(); await hcRequest(); await hcSync(); },
   'hc-open': () => HB && HB.openHealthConnect().catch(e => toast(e.message)),
   install: async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; render(); },

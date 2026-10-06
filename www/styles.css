@@ -255,3 +255,11 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .pill { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
 .pill.limit { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: color-mix(in srgb, var(--warn) 70%, var(--ink)); }
 .pill.avoid { background: color-mix(in srgb, var(--bad) 15%, var(--card)); color: var(--bad); }
+
+/* Unos potrošnje unatrag */
+.bulk-head, .bulk-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+.bulk-head { padding: 0 0 6px; border-bottom: 1px solid var(--line); }
+.bulk-row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.bulk-row label { color: var(--ink); font-size: 14px; display: flex; flex-direction: column; }
+.bulk-row label small { font-size: 11px; }
+.bulk-row input { padding: 7px 8px; }

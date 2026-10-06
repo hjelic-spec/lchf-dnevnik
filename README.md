@@ -2,7 +2,7 @@
 
 Jednostavna aplikacija za kontrolu težine na LCHF / keto prehrani.
 
-- **Danas** – brzi unos težine, neto ugljikohidrati prema dnevnom limitu, makronutrijenti, potrošene kalorije i energetska bilanca, zadnje mjerenje ketona
+- **Danas** – brzi unos težine, neto ugljikohidrati prema dnevnom limitu, makronutrijenti, potrošene kalorije i energetska bilanca (ručni unos potrošnje za 30–90 dana unatrag), zadnje mjerenje ketona
 - **Hrana** – unos ugljikohidrata, vlakana, masti i proteina (po porciji ili na 100 g), favoriti i nedavna hrana za unos jednim dodirom
 - **Baza namirnica** – 118 namirnica u 8 sekcija (meso i riba, jaja i mliječni, masti, povrće, orašasti plodovi, voće, pića, dodaci) s oznakama „ograničeno“ i „izbjegavati“ + online pretraga [Open Food Facts](https://world.openfoodfacts.org)
 - **Skener barkoda** – kamera prepozna EAN kod, vrijednosti se povuku iz Open Food Factsa i zapamte za sljedeći put
@@ -20,7 +20,7 @@ Svi podaci ostaju **samo na uređaju**. Sigurnosnu kopiju napraviš u Postavke �
 3. Pokreni aplikaciju i dodirni **Dopusti** → odobri čitanje kalorija, koraka i težine.
 4. Provjeri da tvoja aplikacija za sat ili aktivnost (Samsung Health, Google Fit, Fitbit, Garmin…) šalje podatke u Health Connect: *Postavke → Health Connect → Dozvole aplikacija*.
 
-Aplikacija pri svakom otvaranju sinkronizira zadnjih 7 dana. Ručni unos za neki dan ima prednost pred sinkronizacijom.
+Aplikacija pri svakom otvaranju sinkronizira zadnjih 7 dana, a gumb „Sinkroniziraj“ zadnjih 30 dana. Ručni unos za neki dan ima prednost pred sinkronizacijom.
 Za Health Connect je potreban Android 9 ili noviji. Od Androida 14 je ugrađen u sustav, a na starijim verzijama aplikacija nudi instalaciju s Play Storea.
 
 **Ažuriranje:** instaliraj novi APK preko postojećeg. Podaci ostaju sačuvani dok je APK potpisan istim ključem (gradi se na istom računalu).
