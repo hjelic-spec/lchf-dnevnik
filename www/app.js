@@ -32,6 +32,7 @@ let db = load();
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(db)); }
   catch (e) { toast('Spremanje nije uspjelo: ' + e.message); }
+  try { widgetSync(); } catch { /* widget još nije inicijaliziran */ }
 }
 
 /* ================= Pomoćne funkcije ================= */
@@ -1277,6 +1278,60 @@ function fastWeekCard(ws, we) {
   </section>`;
 }
 
+/* ================= Android widget ================= */
+const WB = NATIVE ? (window.Capacitor.Plugins && window.Capacitor.Plugins.WidgetBridge) || window.Capacitor.registerPlugin('WidgetBridge') : null;
+if (WB) WB.addListener('widgetAction', () => widgetAction()).catch?.(() => {});
+let widgetTimer = 0;
+function widgetSync() {
+  if (!WB) return;
+  clearTimeout(widgetTimer);
+  widgetTimer = setTimeout(() => {
+    const lw = latestWeight(today()), rate = weeklyRate();
+    WB.update({
+      fastStart: db.fast ? db.fast.start : 0,
+      fastGoal: db.fast ? db.fast.goal : db.settings.fastGoal,
+      weight: lw ? lw.kg : 0,
+      weightDate: lw ? lw.date : '',
+      ...(rate != null ? { rate: Math.round(rate * 100) / 100 } : {}),
+      carbs: Math.round(totals(dayFood(today())).net * 10) / 10,
+      carbLimit: db.settings.carbLimit,
+      carbDate: today()
+    }).catch(e => console.error(e));
+  }, 300);
+}
+async function widgetAction() {
+  if (!WB) return;
+  let r;
+  try { r = await WB.consumeAction(); } catch { return; }
+  if (!r || !r.action) return;
+  if (dlg.open) closeDialog();
+  state.date = today();
+  if (r.action === 'food') { state.tab = 'food'; render(); openFoodSearch(); }
+  else if (r.action === 'weight') { state.tab = 'today'; render(); openWeightQuick(); }
+  else if (r.action === 'fast') {
+    state.tab = 'today'; render(); scrollTo(0, 0);
+    if (!db.fast) setTimeout(() => { if (!db.fast && confirm(`Započeti post sada (cilj ${db.settings.fastGoal} h)?`)) startFast('now'); }, 350);
+  }
+}
+function openWeightQuick() {
+  const d = today(), w = db.weights[d], prev = latestWeight(addDays(d, -1));
+  openDialog(`<h2>Težina danas</h2>
+    <div class="row">
+      <input name="kg" inputmode="decimal" autocomplete="off" value="${w != null ? fmt(w, 1) : ''}" placeholder="${prev ? fmt(prev.kg, 1) : 'npr. 85,4'}" style="font-size:28px;font-weight:700" aria-label="Težina u kg">
+      <span class="muted">kg</span>
+    </div>
+    <p class="muted small" style="margin:8px 0 0">${prev ? `Zadnje mjerenje: ${fmt(prev.kg, 1)} kg (${shortDate(prev.date)})` : 'Važi se ujutro, nakon WC-a.'}</p>
+    <div class="btns end" style="margin-top:12px"><button type="button" class="btn" data-action="close">Odustani</button><button class="btn primary">Spremi</button></div>`,
+    fd => {
+      const kg = num(fd.kg);
+      if (kg == null || kg < 20 || kg > 400) { toast('Unesi težinu u kg, npr. 85,4'); return false; }
+      db.weights[d] = r1(kg);
+      save();
+      toast(`Spremljeno ${fmt(kg, 1)} kg${prev ? ` (${sgn(kg - prev.kg)})` : ''}`);
+    },
+    form => setTimeout(() => form.kg.focus(), 150));
+}
+
 /* ================= Sigurnosna kopija ================= */
 function exportData() {
   db.settings.lastBackup = today(); save();
@@ -1395,6 +1450,7 @@ document.addEventListener('visibilitychange', () => {
   state.lastSeen = today();
   if (!dlg.open) render();
   if (NATIVE && Date.now() - hc.lastSync > 60e3) hcSync();
+  if (NATIVE) { widgetAction(); widgetSync(); }
 });
 addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); installEvt = ev; render(); });
 state.lastSeen = today();
@@ -1408,7 +1464,7 @@ state.lastSeen = today();
   }
   render();
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  if (NATIVE) hcSync();
+  if (NATIVE) { hcSync(); widgetSync(); widgetAction(); }
   else if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }

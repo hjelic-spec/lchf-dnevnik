@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_bg">#FFF6F8</color>
+    <color name="w_line">#F0DDE3</color>
+    <color name="w_ink">#2A1D22</color>
+    <color name="w_muted">#7A6870</color>
+    <color name="w_accent">#C2406A</color>
+    <color name="w_accent_ink">#FFFFFF</color>
+    <color name="w_soft">#FCEAF0</color>
+    <string name="widget_desc">Post, težina i brzi unos</string>
+</resources>
