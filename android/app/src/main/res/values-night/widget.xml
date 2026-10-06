@@ -7,4 +7,5 @@
     <color name="w_accent">#F27C9C</color>
     <color name="w_accent_ink">#2A0F1A</color>
     <color name="w_soft">#2A2024</color>
+    <color name="w_bad">#E5675A</color>
 </resources>

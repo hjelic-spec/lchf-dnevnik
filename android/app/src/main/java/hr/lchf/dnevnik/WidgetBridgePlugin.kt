@@ -44,6 +44,13 @@ class WidgetBridgePlugin : Plugin() {
     fun consumeAction(call: PluginCall) {
         val a = pendingAction
         pendingAction = null
-        call.resolve(JSObject().apply { if (a != null) put("action", a) })
+        // Post pokrenut na widgetu dok aplikacija nije bila otvorena
+        val p = context.getSharedPreferences(PorkiWidget.PREFS, Context.MODE_PRIVATE)
+        val started = p.getLong("pendingFastStart", 0L)
+        if (started > 0L) p.edit().remove("pendingFastStart").apply()
+        call.resolve(JSObject().apply {
+            if (a != null) put("action", a)
+            if (started > 0L) put("fastStart", started)
+        })
     }
 }

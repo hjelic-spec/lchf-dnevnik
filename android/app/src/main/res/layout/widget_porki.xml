@@ -4,9 +4,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:paddingStart="14dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp">
 
+    <!-- Post -->
     <LinearLayout
         android:id="@+id/w_fast"
         android:layout_width="match_parent"
@@ -17,40 +22,60 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
+            android:minHeight="36dp"
             android:orientation="horizontal">
 
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Porki"
                 android:src="@mipmap/ic_launcher_round" />
 
             <TextView
                 android:id="@+id/w_fast_label"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="Post"
                 android:textColor="@color/w_muted"
                 android:textSize="12sp" />
 
             <Chronometer
                 android:id="@+id/w_clock"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:gravity="end"
                 android:textColor="@color/w_ink"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/w_fast_off"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:gravity="end"
                 android:text="nije aktivan"
                 android:textColor="@color/w_muted"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/w_fast_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/widget_btn"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="Započni"
+                android:textColor="@color/w_accent_ink"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <ProgressBar
@@ -58,7 +83,7 @@
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="6dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:max="1000"
             android:progressDrawable="@drawable/widget_progress" />
 
@@ -66,18 +91,29 @@
             android:id="@+id/w_fast_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/w_muted"
             android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/w_fast_phase"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/w_accent"
+            android:textSize="11sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- Težina i UH -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:gravity="bottom"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
@@ -104,15 +140,15 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/w_muted"
-            android:textSize="11sp" />
+            android:textSize="12sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- Brzi unos -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:gravity="bottom"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal">
 
         <TextView
@@ -133,10 +169,10 @@
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:background="@drawable/widget_btn"
+            android:background="@drawable/widget_btn_alt"
             android:gravity="center"
             android:text="+ Hrana"
-            android:textColor="@color/w_accent_ink"
+            android:textColor="@color/w_ink"
             android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>

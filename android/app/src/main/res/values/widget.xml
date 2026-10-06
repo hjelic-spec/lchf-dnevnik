@@ -7,5 +7,6 @@
     <color name="w_accent">#C2406A</color>
     <color name="w_accent_ink">#FFFFFF</color>
     <color name="w_soft">#FCEAF0</color>
+    <color name="w_bad">#C0392B</color>
     <string name="widget_desc">Post, težina i brzi unos</string>
 </resources>

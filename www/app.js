@@ -1281,9 +1281,9 @@ function fastWeekCard(ws, we) {
 /* ================= Android widget ================= */
 const WB = NATIVE ? (window.Capacitor.Plugins && window.Capacitor.Plugins.WidgetBridge) || window.Capacitor.registerPlugin('WidgetBridge') : null;
 if (WB) WB.addListener('widgetAction', () => widgetAction()).catch?.(() => {});
-let widgetTimer = 0;
+let widgetTimer = 0, widgetReady = false;
 function widgetSync() {
-  if (!WB) return;
+  if (!WB || !widgetReady) return; // najprije preuzmi radnje s widgeta (npr. post pokrenut na widgetu)
   clearTimeout(widgetTimer);
   widgetTimer = setTimeout(() => {
     const lw = latestWeight(today()), rate = weeklyRate();
@@ -1301,13 +1301,23 @@ function widgetSync() {
 }
 async function widgetAction() {
   if (!WB) return;
-  let r;
-  try { r = await WB.consumeAction(); } catch { return; }
-  if (!r || !r.action) return;
+  let r = {};
+  try { r = (await WB.consumeAction()) || {}; } catch { /* nema radnje */ }
+  if (r.fastStart && !db.fast) {
+    // obavijest o cilju šalje widget, pa je aplikacija ne zakazuje ponovno
+    db.fast = { start: r.fastStart, goal: db.settings.fastGoal };
+    save();
+    toast(`Post je pokrenut na widgetu u ${hmTxt(r.fastStart)}`);
+    if (!dlg.open) render();
+  }
+  widgetReady = true;
+  widgetSync();
+  if (!r.action) return;
   if (dlg.open) closeDialog();
   state.date = today();
   if (r.action === 'food') { state.tab = 'food'; render(); openFoodSearch(); }
   else if (r.action === 'weight') { state.tab = 'today'; render(); openWeightQuick(); }
+  else if (r.action === 'fast_end') { state.tab = 'today'; render(); scrollTo(0, 0); if (db.fast) setTimeout(endFast, 350); }
   else if (r.action === 'fast') {
     state.tab = 'today'; render(); scrollTo(0, 0);
     if (!db.fast) setTimeout(() => { if (!db.fast && confirm(`Započeti post sada (cilj ${db.settings.fastGoal} h)?`)) startFast('now'); }, 350);
