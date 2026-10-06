@@ -26,8 +26,8 @@
             android:orientation="horizontal">
 
             <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Porki"
                 android:src="@mipmap/ic_launcher_round" />
@@ -38,17 +38,18 @@
                 android:layout_height="wrap_content"
                 android:text="Post"
                 android:textColor="@color/w_muted"
-                android:textSize="12sp" />
+                android:textSize="15sp" />
 
-            <Chronometer
+            <TextView
                 android:id="@+id/w_clock"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:gravity="end"
+                android:maxLines="1"
                 android:textColor="@color/w_ink"
-                android:textSize="22sp"
+                android:textSize="26sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -60,21 +61,21 @@
                 android:gravity="end"
                 android:text="nije aktivan"
                 android:textColor="@color/w_muted"
-                android:textSize="12sp"
+                android:textSize="15sp"
                 android:visibility="gone" />
 
             <TextView
                 android:id="@+id/w_fast_btn"
                 android:layout_width="wrap_content"
-                android:layout_height="32dp"
+                android:layout_height="38dp"
                 android:layout_marginStart="10dp"
                 android:background="@drawable/widget_btn"
                 android:gravity="center"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
                 android:text="Započni"
                 android:textColor="@color/w_accent_ink"
-                android:textSize="13sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -95,7 +96,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/w_muted"
-            android:textSize="11sp" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/w_fast_phase"
@@ -104,7 +105,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/w_accent"
-            android:textSize="11sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -121,7 +122,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/w_ink"
-            android:textSize="18sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
@@ -133,14 +134,14 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/w_muted"
-            android:textSize="11sp" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/w_carbs"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/w_muted"
-            android:textSize="12sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -154,26 +155,26 @@
         <TextView
             android:id="@+id/w_btn_weight"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="46dp"
             android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:background="@drawable/widget_btn_alt"
             android:gravity="center"
             android:text="Unesi kg"
             android:textColor="@color/w_ink"
-            android:textSize="14sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/w_btn_food"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="46dp"
             android:layout_weight="1"
             android:background="@drawable/widget_btn_alt"
             android:gravity="center"
             android:text="+ Hrana"
             android:textColor="@color/w_ink"
-            android:textSize="14sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>

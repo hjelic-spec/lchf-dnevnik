@@ -10,7 +10,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
@@ -29,6 +28,7 @@ class PorkiWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             ACTION_FAST_START -> startFast(context)
+            ACTION_TICK -> refreshAll(context)
             ACTION_FAST_GOAL -> {
                 val p = prefs(context)
                 val start = intent.getLongExtra("start", 0L)
@@ -47,6 +47,7 @@ class PorkiWidget : AppWidgetProvider() {
         const val PREFS = "porki_widget"
         private const val ACTION_FAST_START = "hr.lchf.dnevnik.WIDGET_FAST_START"
         private const val ACTION_FAST_GOAL = "hr.lchf.dnevnik.WIDGET_FAST_GOAL"
+        private const val ACTION_TICK = "hr.lchf.dnevnik.WIDGET_TICK"
         private const val CHANNEL = "porki_fast"
         private val HR: Locale = Locale.forLanguageTag("hr-HR")
         private val PHASES = listOf(
@@ -112,6 +113,16 @@ class PorkiWidget : AppWidgetProvider() {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, goalAt, pi)
         }
 
+        /** Osvježavanje prikaza posta svake minute; nebudeći alarm, pa ne troši bateriju dok je zaslon ugašen. */
+        private fun scheduleTick(context: Context, start: Long) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pi = broadcast(context, ACTION_TICK, 11)
+            if (start <= 0L) { am.cancel(pi); return }
+            val now = System.currentTimeMillis()
+            val next = start + ((now - start) / 60_000 + 1) * 60_000
+            am.setWindow(AlarmManager.RTC, next, 10_000, pi)
+        }
+
         private fun goalLabel(goal: Double): String {
             val g = Math.round(goal).toInt()
             return if (g >= 24 || g <= 0) "$g h" else "$g:${24 - g}"
@@ -146,7 +157,9 @@ class PorkiWidget : AppWidgetProvider() {
                 v.setViewVisibility(R.id.w_fast_off, View.GONE)
                 v.setViewVisibility(R.id.w_progress, View.VISIBLE)
                 v.setViewVisibility(R.id.w_fast_phase, View.VISIBLE)
-                v.setChronometer(R.id.w_clock, SystemClock.elapsedRealtime() - elapsed, null, true)
+                val mins = elapsed / 60_000
+                v.setTextViewText(R.id.w_clock, "${mins / 60} h ${String.format(HR, "%02d", mins % 60)} min")
+                scheduleTick(context, start)
                 v.setProgressBar(R.id.w_progress, 1000, if (goalMs > 0) ((elapsed * 1000) / goalMs).coerceAtMost(1000).toInt() else 0, false)
                 v.setTextViewText(
                     R.id.w_fast_info,
@@ -158,7 +171,7 @@ class PorkiWidget : AppWidgetProvider() {
                 v.setOnClickPendingIntent(R.id.w_fast_btn, launch(context, "fast_end", 5))
                 scheduleGoal(context, start, start + goalMs)
             } else {
-                v.setChronometer(R.id.w_clock, SystemClock.elapsedRealtime(), null, false)
+                scheduleTick(context, 0L)
                 v.setViewVisibility(R.id.w_clock, View.GONE)
                 v.setViewVisibility(R.id.w_fast_off, View.VISIBLE)
                 v.setViewVisibility(R.id.w_progress, View.GONE)
