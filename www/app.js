@@ -30,9 +30,11 @@ function load() {
 }
 let db = load();
 function save() {
+  db.savedAt = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(db)); }
   catch (e) { toast('Spremanje nije uspjelo: ' + e.message); }
   try { widgetSync(); } catch { /* widget još nije inicijaliziran */ }
+  try { nativeSave(); } catch { /* samo Android */ }
 }
 
 /* ================= Pomoćne funkcije ================= */
@@ -1281,13 +1283,43 @@ function fastWeekCard(ws, we) {
 /* ================= Android widget ================= */
 const WB = NATIVE ? (window.Capacitor.Plugins && window.Capacitor.Plugins.WidgetBridge) || window.Capacitor.registerPlugin('WidgetBridge') : null;
 if (WB) WB.addListener('widgetAction', () => widgetAction()).catch?.(() => {});
-let widgetTimer = 0, widgetReady = false;
+let widgetTimer = 0, widgetReady = false, nativeTimer = 0;
+// Android: trajna kopija u datoteci aplikacije (WebView localStorage na disk zapisuje s odgodom)
+function nativeSave(now = false) {
+  if (!WB) return;
+  clearTimeout(nativeTimer);
+  const write = () => WB.saveData({ json: JSON.stringify(db) }).catch(e => console.error(e));
+  if (now) write(); else nativeTimer = setTimeout(write, 250);
+}
+async function nativeRestore() {
+  if (!WB) return;
+  try {
+    const r = await WB.loadData();
+    const d = r && r.json ? JSON.parse(r.json) : null;
+    if (d && (d.savedAt || 0) > (db.savedAt || 0)) {
+      const e = emptyDb();
+      db = { ...e, ...d, settings: { ...e.settings, ...(d.settings || {}) } };
+      try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* ignore */ }
+    } else if (!d) nativeSave(true);
+  } catch (e) { console.error(e); }
+}
 function widgetSync() {
   if (!WB || !widgetReady) return; // najprije preuzmi radnje s widgeta (npr. post pokrenut na widgetu)
   clearTimeout(widgetTimer);
   widgetTimer = setTimeout(() => {
     const lw = latestWeight(today()), rate = weeklyRate();
+    // promjena u odnosu na prethodno mjerenje
+    const ds = weightDates().filter(d => d <= today()), last = ds.at(-1), prevD = ds.at(-2);
+    const diff = last && prevD ? r1(db.weights[last] - db.weights[prevD]) : null;
+    // kalorijska bilanca: danas i zadnjih 7 dana (samo dani s unosom hrane i poznatom potrošnjom)
+    const balOf = d => { const fl = dayFood(d), b = burnedOf(db.energy[d]); return fl.length && b != null ? totals(fl).kcal - b : null; };
+    const balToday = balOf(today());
+    const week = [...Array(7)].map((_, i) => balOf(addDays(today(), -i))).filter(v => v != null);
     WB.update({
+      ...(diff != null ? { weightDiff: diff, weightDiffRef: prevD === addDays(last, -1) ? 'jučer' : shortDate(prevD) } : {}),
+      ...(balToday != null ? { balToday: Math.round(balToday) } : {}),
+      ...(week.length ? { balWeek: Math.round(sum(week)), balWeekDays: week.length } : {}),
+      balDate: today(),
       fastStart: db.fast ? db.fast.start : 0,
       fastGoal: db.fast ? db.fast.goal : db.settings.fastGoal,
       weight: lw ? lw.kg : 0,
@@ -1454,7 +1486,7 @@ $('#datePicker').addEventListener('change', ev => {
   if (ev.target.value) { state.date = ev.target.value > today() ? today() : ev.target.value; render(); }
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
+  if (document.visibilityState !== 'visible') { if (NATIVE) nativeSave(true); return; }
   // novi dan dok je aplikacija bila otvorena
   if (state.lastSeen && state.lastSeen !== today() && state.date === state.lastSeen) state.date = today();
   state.lastSeen = today();
@@ -1466,7 +1498,8 @@ addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); installEvt 
 state.lastSeen = today();
 
 /* ================= Pokretanje ================= */
-(function init() {
+(async function init() {
+  if (NATIVE) await nativeRestore();
   const qs = location.search;
   if (qs && /(total|active|basal|steps|weight)=/.test(qs)) {
     applyHealth(qs);

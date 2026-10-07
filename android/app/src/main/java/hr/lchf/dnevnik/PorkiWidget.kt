@@ -74,7 +74,7 @@ class PorkiWidget : AppWidgetProvider() {
             val p = prefs(context)
             if (p.getLong("fastStart", 0L) > 0L) return refreshAll(context)
             val now = System.currentTimeMillis()
-            p.edit().putLong("fastStart", now).putLong("pendingFastStart", now).putBoolean("nativeNotify", true).apply()
+            p.edit().putLong("fastStart", now).putLong("pendingFastStart", now).putBoolean("nativeNotify", true).commit()
             refreshAll(context)
         }
 
@@ -122,6 +122,12 @@ class PorkiWidget : AppWidgetProvider() {
             val next = start + ((now - start) / 60_000 + 1) * 60_000
             am.setWindow(AlarmManager.RTC, next, 10_000, pi)
         }
+
+        private fun signed(x: Double, dec: Int): String =
+            (if (x > 0) "+" else if (x < 0) "−" else "±") + String.format(HR, "%.${dec}f", Math.abs(x))
+
+        private fun shortDay(iso: String): String =
+            iso.split("-").let { if (it.size == 3) "${it[2].toInt()}.${it[1].toInt()}." else "" }
 
         private fun goalLabel(goal: Double): String {
             val g = Math.round(goal).toInt()
@@ -182,21 +188,48 @@ class PorkiWidget : AppWidgetProvider() {
                 scheduleGoal(context, 0L, 0L)
             }
 
-            // Težina
+            // Težina i promjena u odnosu na prethodno mjerenje
             val weight = p.getFloat("weight", 0f)
+            val color = { id: Int -> ContextCompat.getColor(context, id) }
             if (weight > 0f) {
                 v.setTextViewText(R.id.w_weight, String.format(HR, "%.1f kg", weight))
                 val wd = p.getString("weightDate", "") ?: ""
-                val parts = mutableListOf<String>()
-                parts += if (wd == today) "danas" else wd.split("-").let { if (it.size == 3) "${it[2].toInt()}.${it[1].toInt()}." else "" }
-                if (p.contains("rate")) {
-                    val r = p.getFloat("rate", 0f)
-                    parts += (if (r > 0) "+" else if (r < 0) "−" else "±") + String.format(HR, "%.2f kg/tj", Math.abs(r))
+                if (p.contains("weightDiff")) {
+                    val d = p.getFloat("weightDiff", 0f)
+                    val ref = p.getString("weightDiffRef", "") ?: ""
+                    val day = if (wd == today) "" else " (${shortDay(wd)})"
+                    v.setTextViewText(R.id.w_weight_info, "${signed(d.toDouble(), 1)} kg od $ref$day")
+                    v.setTextColor(R.id.w_weight_info, color(if (d < 0f) R.color.w_good else if (d > 0f) R.color.w_bad else R.color.w_muted))
+                } else {
+                    v.setTextViewText(R.id.w_weight_info, if (wd == today) "danas" else shortDay(wd))
+                    v.setTextColor(R.id.w_weight_info, color(R.color.w_muted))
                 }
-                v.setTextViewText(R.id.w_weight_info, parts.filter { it.isNotEmpty() }.joinToString(" · "))
             } else {
                 v.setTextViewText(R.id.w_weight, "– kg")
                 v.setTextViewText(R.id.w_weight_info, "još nema mjerenja")
+                v.setTextColor(R.id.w_weight_info, color(R.color.w_muted))
+            }
+
+            // Očekivana promjena prema kalorijskoj bilanci (7700 kcal ≈ 1 kg masnog tkiva)
+            val fresh = p.getString("balDate", "") == today
+            val parts = mutableListOf<String>()
+            var tone = 0f
+            if (fresh && p.contains("balToday")) {
+                val bt = p.getFloat("balToday", 0f).toDouble()
+                parts += "danas ${signed(bt, 0)} kcal ≈ ${signed(bt / 7700, 2)} kg"
+                tone = bt.toFloat()
+            }
+            if (fresh && p.contains("balWeek")) {
+                val bw = p.getFloat("balWeek", 0f).toDouble()
+                parts += "${p.getInt("balWeekDays", 7)} d ≈ ${signed(bw / 7700, 2)} kg"
+                tone = bw.toFloat()
+            }
+            if (parts.isEmpty()) {
+                v.setTextViewText(R.id.w_balance, "Bilanca: unesi hranu i potrošnju")
+                v.setTextColor(R.id.w_balance, color(R.color.w_muted))
+            } else {
+                v.setTextViewText(R.id.w_balance, "Bilanca " + parts.joinToString(" · "))
+                v.setTextColor(R.id.w_balance, color(if (tone < 0f) R.color.w_good else if (tone > 0f) R.color.w_bad else R.color.w_muted))
             }
 
             // Neto UH danas (crveno iznad limita)
