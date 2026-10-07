@@ -10,7 +10,7 @@ Jednostavna aplikacija za kontrolu težine na LCHF / keto prehrani.
 - **Težina** – graf s 7-dnevnim prosjekom, tempo kg/tjedan, BMI, procjena kad ćeš doći do cilja
 - **Ketoni** – Keto-Diastix trakice (ketoni + glukoza), pregled zadnjih 30 dana, upozorenja
 - **Analiza** – tjedni prosjeci, automatski uvidi, grafovi, tablica po danima i trend zadnjih 8 tjedana
-- **Android widget** – post s timerom, fazom i napretkom (pokreni ga gumbom „Započni“ bez otvaranja aplikacije), težina s promjenom od jučer, UH danas i očekivana promjena težine prema kalorijskoj bilanci (danas i 7 dana); gumbi „Unesi kg“ i „+ Hrana“ otvaraju unos izravno
+- **Android widget** – post s timerom, fazom i napretkom (pokreni ga gumbom „Započni“ bez otvaranja aplikacije), težina s promjenom od jučer, UH danas i očekivana promjena težine prema kalorijskoj bilanci (danas i 7 dana), zadnje mjerenje ketona i proteini danas; dodir na težinu otvara unos kg, na UH dodavanje hrane, na ketone karticu Ketoni
 
 Svi podaci ostaju **samo na uređaju**. Sigurnosnu kopiju napraviš u Postavke → Izvezi kopiju.
 

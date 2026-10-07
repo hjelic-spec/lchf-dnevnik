@@ -1315,11 +1315,16 @@ function widgetSync() {
     const balOf = d => { const fl = dayFood(d), b = burnedOf(db.energy[d]); return fl.length && b != null ? totals(fl).kcal - b : null; };
     const balToday = balOf(today());
     const week = [...Array(7)].map((_, i) => balOf(addDays(today(), -i))).filter(v => v != null);
+    const lk = [...db.ketones].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))[0];
+    const tt = totals(dayFood(today()));
     WB.update({
       ...(diff != null ? { weightDiff: diff, weightDiffRef: prevD === addDays(last, -1) ? 'jučer' : shortDate(prevD) } : {}),
       ...(balToday != null ? { balToday: Math.round(balToday) } : {}),
       ...(week.length ? { balWeek: Math.round(sum(week)), balWeekDays: week.length } : {}),
       balDate: today(),
+      protein: Math.round(tt.protein),
+      proteinTarget: db.settings.proteinTarget || 0,
+      ...(lk ? { ketText: KET[lk.ket].l, ketColor: KET[lk.ket].c, ketDate: lk.date, ketTime: lk.time || '', gluWarn: lk.glu > 0 } : {}),
       fastStart: db.fast ? db.fast.start : 0,
       fastGoal: db.fast ? db.fast.goal : db.settings.fastGoal,
       weight: lw ? lw.kg : 0,
@@ -1349,6 +1354,8 @@ async function widgetAction() {
   state.date = today();
   if (r.action === 'food') { state.tab = 'food'; render(); openFoodSearch(); }
   else if (r.action === 'weight') { state.tab = 'today'; render(); openWeightQuick(); }
+  else if (r.action === 'today') { state.tab = 'today'; render(); scrollTo(0, 0); }
+  else if (r.action === 'ketones') { state.tab = 'ketones'; render(); scrollTo(0, 0); }
   else if (r.action === 'fast_end') { state.tab = 'today'; render(); scrollTo(0, 0); if (db.fast) setTimeout(endFast, 350); }
   else if (r.action === 'fast') {
     state.tab = 'today'; render(); scrollTo(0, 0);

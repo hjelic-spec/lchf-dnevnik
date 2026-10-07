@@ -239,8 +239,36 @@ class PorkiWidget : AppWidgetProvider() {
             v.setTextColor(R.id.w_carbs, ContextCompat.getColor(context, if (carbs > limit) R.color.w_bad else R.color.w_muted))
 
             v.setOnClickPendingIntent(R.id.w_fast, launch(context, "fast", 1))
-            v.setOnClickPendingIntent(R.id.w_btn_weight, launch(context, "weight", 2))
-            v.setOnClickPendingIntent(R.id.w_btn_food, launch(context, "food", 3))
+            // Ketoni (zadnja trakica) i proteini danas
+            val ketText = p.getString("ketText", "") ?: ""
+            if (ketText.isNotEmpty()) {
+                val kd = p.getString("ketDate", "") ?: ""
+                val ago = when (kd) {
+                    today -> "danas"
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(now - 86_400_000)) -> "jučer"
+                    else -> shortDay(kd)
+                }
+                val time = p.getString("ketTime", "") ?: ""
+                val glu = if (p.getBoolean("gluWarn", false)) " · glukoza!" else ""
+                v.setTextViewText(R.id.w_ket, "Ketoni $ketText · ${if (kd == today && time.isNotEmpty()) time else ago}$glu")
+                v.setTextColor(R.id.w_ket, color(if (glu.isNotEmpty()) R.color.w_bad else R.color.w_ink))
+                v.setViewVisibility(R.id.w_ket_dot, View.VISIBLE)
+                v.setInt(R.id.w_ket_dot, "setColorFilter", p.getInt("ketColor", 0xFFEFE3C9.toInt()))
+            } else {
+                v.setViewVisibility(R.id.w_ket_dot, View.GONE)
+                v.setTextViewText(R.id.w_ket, "Ketoni: još nema mjerenja")
+                v.setTextColor(R.id.w_ket, color(R.color.w_muted))
+            }
+            val prot = if (p.getString("carbDate", "") == today) p.getFloat("protein", 0f) else 0f
+            val protTarget = p.getFloat("proteinTarget", 0f)
+            v.setTextViewText(R.id.w_protein, if (protTarget > 0f) String.format(HR, "P %.0f / %.0f g", prot, protTarget) else String.format(HR, "P %.0f g", prot))
+            v.setTextColor(R.id.w_protein, color(if (protTarget > 0f && prot >= protTarget) R.color.w_good else R.color.w_muted))
+
+            // Dodiri: težina → unos kg, UH → dodaj hranu, ostalo → aplikacija
+            v.setOnClickPendingIntent(R.id.w_weight_row, launch(context, "weight", 2))
+            v.setOnClickPendingIntent(R.id.w_carbs, launch(context, "food", 3))
+            v.setOnClickPendingIntent(R.id.w_balance, launch(context, "today", 7))
+            v.setOnClickPendingIntent(R.id.w_ket_row, launch(context, "ketones", 8))
             return v
         }
     }
