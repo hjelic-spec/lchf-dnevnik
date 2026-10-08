@@ -431,7 +431,7 @@ function viewFood() {
   return `
   ${lastMealCard()}
   <section class="card">
-    <div class="card-h"><h2>Najčešće namirnice</h2>${db.favorites.length ? '<button class="btn ghost sm" data-action="edit-favs">Favoriti</button>' : ''}</div>
+    <div class="card-h"><h2>Najčešće namirnice</h2><button class="btn ghost sm" data-action="edit-favs">★ Favoriti${db.favorites.length ? ' (' + db.favorites.length + ')' : ''}</button></div>
     ${state.quick.length ? `<div class="freq">${state.quick.map((q, i) => `
       <button class="freq-item" data-action="quick" data-i="${i}">
         <span class="name">${q.fav ? '<span style="color:#e0a800">★</span> ' : ''}${h(q.name)}</span>
@@ -728,6 +728,7 @@ function openFood(pre = {}, editId = null) {
       <div class="btns end">
         ${editId ? '<button type="button" class="btn danger" data-action="del-food" data-id="' + editId + '" style="margin-right:auto">Obriši</button>' : ''}
         <button type="button" class="btn" data-action="close">Odustani</button>
+        ${editId ? '' : '<button type="button" class="btn" data-action="fav-only">★ Samo u favorite</button>'}
         <button class="btn primary">${editId ? 'Spremi' : 'Dodaj'}</button>
       </div>
     </div>`,
@@ -763,6 +764,23 @@ function openFood(pre = {}, editId = null) {
       if (!pre.name) form.name.focus();
     });
 }
+const isFav = name => db.favorites.some(f => f.name.toLowerCase() === String(name).toLowerCase());
+// Favorit iz stavke pretrage / baze / ručnog unosa (bez dodavanja u obrok)
+function toggleFavorite(it) {
+  if (isFav(it.name)) {
+    db.favorites = db.favorites.filter(f => f.name.toLowerCase() !== it.name.toLowerCase());
+    save();
+    return false;
+  }
+  db.favorites.push({
+    id: uid(), name: it.name, per100: !!it.per100, grams: it.grams || null,
+    carbs: it.carbs || 0, fiber: it.fiber || 0, fat: it.fat || 0, protein: it.protein || 0,
+    inc: it.inc ?? !!db.settings.carbsIncludeFiber
+  });
+  db.favorites.sort((a, b) => a.name.localeCompare(b.name, 'hr'));
+  save();
+  return true;
+}
 function saveFavorite(item) {
   const fav = item.src
     ? { id: uid(), name: item.name, per100: true, grams: item.grams, ...item.src, inc: item.inc }
@@ -776,7 +794,8 @@ function openFavs() {
     <ul class="list">${db.favorites.map(f => `<li><div class="grow"><div class="name">${h(f.name)}</div>
       <div class="muted small">${f.per100 ? 'na 100 g' : 'porcija'}${f.grams ? ` · ${fmt(f.grams)} g` : ''} · UH ${fmt(netOf(f), 1)} · M ${fmt(f.fat, 1)} · P ${fmt(f.protein, 1)}</div></div>
       <button type="button" class="x-btn" data-action="del-fav" data-id="${f.id}" aria-label="Obriši">✕</button></li>`).join('') || '<p class="empty">Nema favorita.</p>'}</ul>
-    <div class="btns end" style="margin-top:12px"><button type="button" class="btn" data-action="close">Zatvori</button></div>`);
+    <p class="muted small" style="margin:10px 0 0">Favorit dodaješ i zvjezdicom ★ u pretrazi i popisu namirnica – bez unosa u obrok.</p>
+    <div class="btns end" style="margin-top:12px"><button type="button" class="btn" data-action="fav-new" style="margin-right:auto">+ Novi favorit</button><button type="button" class="btn" data-action="close">Zatvori</button></div>`);
 }
 
 /* Ketoni */
@@ -1045,7 +1064,7 @@ function itemRow(it, src, i, sub = true) {
   return `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
     <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)} ${levelPill(it.level)}</div>
     <div class="muted small">${it.per100 ? 'na 100 g' : 'porcija'} · UH ${fmt(netOf(it), 1)} · M ${fmt(it.fat, 1)} · P ${fmt(it.protein, 1)} · ${fmt(kcalOf(it))} kcal${sub && it.section ? ` · ${h(it.section)}` : ''}</div>
-  </button></li>`;
+  </button><button type="button" class="star ${isFav(it.name) ? 'on' : ''}" data-action="fav-item" data-src="${src}" data-i="${i}" aria-label="Dodaj u favorite">★</button></li>`;
 }
 const resultRows = (list, src) => list.map((it, i) => itemRow(it, src, i)).join('');
 function foodSections() {
@@ -1522,6 +1541,25 @@ const actions = {
     save(); render();
   },
   'edit-favs': openFavs,
+  'fav-new': () => openFood({ per100: true }),
+  'fav-item': el => {
+    const i = +el.dataset.i, src = el.dataset.src;
+    const it = src === 'd' ? (FOOD_DB[i] && dbItem(FOOD_DB[i])) : (src === 'o' ? state.offres : state.sres)[i];
+    if (!it) return;
+    const on = toggleFavorite(it);
+    el.classList.toggle('on', on);
+    toast(on ? `★ ${it.name} dodano u favorite` : 'Uklonjeno iz favorita');
+  },
+  'fav-only': () => {
+    const fd = Object.fromEntries(new FormData(dlg.querySelector('form')));
+    const name = (fd.name || '').trim();
+    if (!name) { toast('Upiši naziv'); return; }
+    const it = { name, per100: !!fd.per100, grams: num(fd.grams), carbs: num(fd.carbs) || 0, fiber: num(fd.fiber) || 0, fat: num(fd.fat) || 0, protein: num(fd.protein) || 0 };
+    db.favorites = db.favorites.filter(f => f.name.toLowerCase() !== name.toLowerCase());
+    toggleFavorite(it);
+    closeDialog(); render();
+    toast(`★ ${name} spremljeno u favorite`);
+  },
   'del-fav': el => { db.favorites = db.favorites.filter(f => f.id !== el.dataset.id); save(); el.closest('li').remove(); render(); },
   'add-ketone': openKetone,
   'del-ketone': el => { if (confirm('Obrisati mjerenje?')) { db.ketones = db.ketones.filter(k => k.id !== el.dataset.id); save(); render(); } },
