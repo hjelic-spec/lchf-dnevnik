@@ -278,3 +278,8 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .sheet-head h2 { flex: 1; min-width: 0; margin: 0 !important; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-actions { display: flex; align-items: center; gap: 4px; flex: none; }
 .sheet-head .icon-btn { font-size: 20px; width: 44px; height: 44px; color: var(--muted); }
+
+/* Objašnjenje u analizi */
+.explain { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.explain summary { cursor: pointer; font-weight: 600; color: var(--accent); min-height: 32px; }
+.explain p { font-size: 14px; margin: 8px 0; }

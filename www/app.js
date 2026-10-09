@@ -615,6 +615,99 @@ function insights(wd, prev) {
   if (wd.some(x => x.glu > 0)) add('bad', 'Trakice su pokazale glukozu u urinu. Ako se ponavlja, javi se liječniku – osobito ako su i ketoni visoki.');
   return out;
 }
+/* ---------- Očekivani (iz kalorijske bilance) vs. stvarni gubitak ---------- */
+const KCAL_PER_KG = 7700;
+const tjedan = n => n % 10 === 1 && n % 100 !== 11 ? 'tjedan' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'tjedna' : 'tjedana';
+// Za tjedan: očekivana promjena (kg) iz bilance i stvarna promjena (razlika tjednih prosjeka težine)
+function weekEnergyVsScale(ws) {
+  const wd = weekData(ws), prev = weekData(addDays(ws, -7));
+  const B = wd.filter(x => x.balance != null);
+  const sumBal = sum(B.map(x => x.balance));
+  const expected = B.length ? sumBal / KCAL_PER_KG : null;                         // samo dani s podacima
+  const expectedWeek = B.length >= 3 ? mean(B.map(x => x.balance)) * 7 / KCAL_PER_KG : null; // procjena za 7 dana
+  const wNow = wd.filter(x => x.weight != null), wPrev = prev.filter(x => x.weight != null);
+  let actual = null, actualHow = '';
+  if (wNow.length && wPrev.length) { actual = mean(wNow.map(x => x.weight)) - mean(wPrev.map(x => x.weight)); actualHow = 'prosjek tjedna u odnosu na prošli tjedan'; }
+  else if (wNow.length >= 2) { actual = wNow.at(-1).weight - wNow[0].weight; actualHow = `od ${shortDate(wNow[0].d)} do ${shortDate(wNow.at(-1).d)}`; }
+  const avgBal = B.length ? sumBal / B.length : null;
+  const avgW = mean([...wNow, ...wPrev].map(x => x.weight));
+  return { ws, days: B.length, sumBal, avgBal, expected, expectedWeek, actual, actualHow, avgW, wd };
+}
+function energyVsScaleCard(ws) {
+  const s = db.settings, e = weekEnergyVsScale(ws);
+  const exp = e.expectedWeek ?? e.expected;
+  const kg = v => v == null ? '–' : `${sgn(v, 2)} kg`;
+  // 8 tjedana: očekivano vs stvarno
+  const weeks = [...Array(8)].map((_, i) => weekEnergyVsScale(addDays(ws, -7 * (7 - i))));
+  const both = weeks.filter(w => w.expectedWeek != null && w.actual != null);
+  const cumExp = sum(both.map(w => w.expectedWeek)), cumAct = sum(both.map(w => w.actual));
+  // Tumačenje tjedna
+  const notes = [];
+  const add = (type, text) => notes.push({ type, text });
+  if (exp == null) add('info', 'Za izračun su potrebni dani s unesenom hranom i potrošnjom (Health Connect ili ručni unos) – barem 3 dana u tjednu.');
+  if (exp != null && e.actual != null) {
+    const d = e.actual - exp;
+    if (Math.abs(d) <= 0.3) add('good', 'Stvarna promjena je u skladu s kalorijskom bilancom – unos i potrošnja su dobro procijenjeni.');
+    else if (d < 0) add('info', `Stvarni gubitak je ${fmt(-d, 1)} kg veći nego što bilanca predviđa. Najčešće je to voda i glikogen (osobito u prvim tjednima LCHF-a ili nakon dana s više UH), a moguće je i da je unos hrane precijenjen ili potrošnja podcijenjena.`);
+    else add('warn', `Gubitak je ${fmt(d, 1)} kg manji od očekivanog. Moguće je zadržavanje vode (sol, stres, loš san, novi trening, hormonski ciklus), neupisane kalorije (ulja, umaci, orašasti plodovi, „kušanje“) ili precijenjena potrošnja s pametnog sata.`);
+  } else if (exp != null) add('info', 'Za usporedbu sa stvarnim gubitkom važi se barem 2 puta tjedno, a idealno svaki dan.');
+  if (both.length >= 3 && cumAct - cumExp > 0.5) {
+    const perDay = (cumAct - cumExp) * KCAL_PER_KG / (both.length * 7);
+    add('warn', `Kroz ${both.length} ${tjedan(both.length)} stvarni gubitak zaostaje za očekivanim za ${fmt(cumAct - cumExp, 1)} kg – to odgovara razlici od oko ${fmt(perDay)} kcal dnevno. Provjeri točnost unosa ili računaj s manjom potrošnjom od one koju pokazuje sat.`);
+  }
+  // Zdravlje
+  const health = [];
+  const hAdd = (type, text) => health.push({ type, text });
+  const bw = e.avgW || latestWeight(addDays(ws, 6))?.kg;
+  if (e.avgBal != null && e.avgBal < -1000) hAdd('warn', `Prosječni deficit od ${fmt(-e.avgBal)} kcal dnevno je velik. Dugotrajno veliki deficit povećava rizik gubitka mišića, umora, opadanja kose i žučnih kamenaca.`);
+  if (bw && exp != null && -exp > bw * 0.01) hAdd('warn', `Očekivani gubitak od ${fmt(-exp, 1)} kg tjedno veći je od 1 % tjelesne težine – za održiv gubitak masti preporučuje se 0,5–1 % tjedno.`);
+  if (bw && e.actual != null && -e.actual > bw * 0.015) hAdd('info', 'Stvarni pad veći od 1,5 % težine u tjednu najčešće je voda – nije razlog za dodatno smanjivanje hrane.');
+  const L = e.wd.filter(x => x.logged);
+  if (L.length && s.proteinTarget && mean(L.map(x => x.protein)) < s.proteinTarget * 0.85) hAdd('warn', 'Unos proteina je ispod cilja – u deficitu je dovoljno proteina ključno za očuvanje mišića.');
+  const lowDays = L.filter(x => x.kcal < 1200).length;
+  if (lowDays >= 3) hAdd('warn', `${lowDays} dana s unosom ispod 1200 kcal – tako nizak unos teško pokriva potrebe za vitaminima i mineralima.`);
+  if (!health.length) hAdd('good', 'Tempo i unos ovog tjedna izgledaju umjereno i održivo.');
+  return `<section class="card">
+    <div class="card-h"><h2>Očekivano vs. stvarno</h2><span class="muted">${e.days ? `${e.days} od 7 dana s bilancom` : ''}</span></div>
+    <div class="tiles">
+      <div class="tile"><b class="${exp == null ? '' : exp <= 0 ? 'good' : 'bad'}">${kg(exp)}</b><span>očekivano (bilanca${e.days && e.days < 7 && e.expectedWeek != null ? ', procjena 7 d' : ''})</span></div>
+      <div class="tile"><b class="${e.actual == null ? '' : e.actual <= 0 ? 'good' : 'bad'}">${kg(e.actual)}</b><span>stvarno (vaga)</span></div>
+      <div class="tile"><b>${exp != null && e.actual != null ? sgn(e.actual - exp, 2) + ' kg' : '–'}</b><span>razlika</span></div>
+    </div>
+    <p class="muted small" style="margin:8px 0 0">Bilanca tjedna ${e.days ? `${sgn(e.sumBal, 0)} kcal (Ø ${sgn(e.avgBal, 0)} kcal/dan)` : '–'}${e.actualHow ? ` · stvarno: ${e.actualHow}` : ''}</p>
+    <ul class="insights" style="margin-top:8px">${notes.map(n => `<li class="${n.type}">${n.text}</li>`).join('')}</ul>
+    <h3>Zadnjih 8 tjedana</h3>
+    ${chart({ labels: weeks.map(w => shortDate(w.ws)), h: 160, zero: true, maxLabels: 8,
+      series: [
+        { type: 'bar', values: weeks.map(w => w.expectedWeek != null ? Math.round(w.expectedWeek * 100) / 100 : null), color: 'color-mix(in srgb, var(--accent) 45%, transparent)', dec: 2, name: 'kg očekivano' },
+        { type: 'line', values: weeks.map(w => w.actual != null ? Math.round(w.actual * 100) / 100 : null), color: 'var(--ink)', width: 2 },
+        { type: 'dots', values: weeks.map(w => w.actual != null ? Math.round(w.actual * 100) / 100 : null), color: 'var(--ink)', dec: 2, name: 'kg stvarno' }
+      ], empty: 'Još nema dovoljno podataka o bilanci i težini.' })}
+    <div class="legend" style="margin-top:4px"><span><i style="background:color-mix(in srgb, var(--accent) 45%, transparent)"></i>očekivano iz bilance</span><span><i style="background:var(--ink)"></i>stvarno na vagi</span></div>
+    ${both.length ? `<p class="small" style="margin:8px 0 0">Ukupno za ${both.length} ${tjedan(both.length)} s podacima: očekivano <b>${sgn(cumExp, 1)} kg</b>, stvarno <b>${sgn(cumAct, 1)} kg</b>.</p>` : ''}
+    <h3>Zdravlje</h3>
+    <ul class="insights">${health.map(n => `<li class="${n.type}">${n.text}</li>`).join('')}</ul>
+    <details class="explain">
+      <summary>Kako se računa i na što pripaziti</summary>
+      <div class="help">
+        <p><b>Očekivani gubitak</b> = zbroj dnevne bilance (unos hrane − potrošnja) ÷ 7700 kcal, koliko otprilike sadrži 1 kg masnog tkiva. Računaju se samo dani s unesenom hranom i poznatom potrošnjom; ako ih je manje od 7, prosjek se preračuna na cijeli tjedan.</p>
+        <p><b>Stvarna promjena</b> = prosjek težine ovog tjedna minus prosjek prošlog tjedna. Prosjeci su pouzdaniji od pojedinačnih mjerenja jer težina dnevno oscilira 0,5–1,5 kg.</p>
+        <p><b>Zašto se razlikuju:</b> vaga mjeri i vodu, glikogen (1 g glikogena veže oko 3 g vode), sadržaj crijeva i sol. Na početku LCHF-a pad je brži od bilance jer se troši glikogen; nakon dana s više UH težina skoči iako masti nije više. Pametni satovi potrošnju često precijene za 10–30 %, a unos hrane se lako podcijeni. Zato gledaj trend kroz 3–4 tjedna, a ne pojedini tjedan.</p>
+        <p><b>Na što pripaziti radi zdravlja:</b></p>
+        <ol>
+          <li>Ciljaj gubitak 0,5–1 % tjelesne težine tjedno; prebrzo mršavljenje povećava rizik gubitka mišića i žučnih kamenaca.</li>
+          <li>Dovoljno proteina (oko 1,2–1,6 g po kg ciljne težine) i trening snage čuvaju mišiće.</li>
+          <li>Pij dovoljno vode i nadoknadi elektrolite – posebno sol (natrij), magnezij i kalij – osobito u prvim tjednima (glavobolja, umor i grčevi znak su „keto gripe“).</li>
+          <li>Jedi dovoljno povrća s malo UH zbog vlakana, vitamina i probave.</li>
+          <li>San i stres utječu na zadržavanje vode i apetit.</li>
+          <li>Važi se u isto vrijeme (ujutro, nakon WC-a), a povremeno izmjeri i opseg struka – mijenja se i kad vaga stoji.</li>
+          <li>Ako uzimaš lijekove za šećer ili tlak, LCHF može zahtijevati prilagodbu doze – dogovori se s liječnikom. Povremeno provjeri krvne nalaze (masnoće, glukoza, jetra, bubrezi).</li>
+        </ol>
+        <p class="muted small">Ovo su opće smjernice, a ne medicinski savjet.</p>
+      </div>
+    </details>
+  </section>`;
+}
 function viewAnalysis() {
   const ws = state.week, we = addDays(ws, 6), s = db.settings;
   const wd = weekData(ws), prev = weekData(addDays(ws, -7));
@@ -653,6 +746,7 @@ function viewAnalysis() {
   <section class="card"><div class="card-h"><h2>Uvidi</h2></div>
     <ul class="insights">${insights(wd, prev).map(i => `<li class="${i.type}">${i.text}</li>`).join('')}</ul>
   </section>
+  ${energyVsScaleCard(ws)}
   <section class="card"><div class="card-h"><h2>Neto ugljikohidrati</h2><span class="muted">g/dan</span></div>
     ${chart({ labels, h: 150, zero: true, series: [{ type: 'bar', values: wd.map(x => x.logged ? r1(x.net) : null), color: v => v > s.carbLimit ? 'var(--bad)' : 'var(--c-carb)', dec: 1, name: 'g' }], refs: [{ y: s.carbLimit, color: 'var(--bad)', label: 'limit ' + s.carbLimit }], empty: 'Nema unosa hrane ovaj tjedan.' })}
   </section>
