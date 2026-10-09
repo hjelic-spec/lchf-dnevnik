@@ -1767,7 +1767,7 @@ function reportSummaryText(ws) {
   if (W.length) parts.push(`Težina: ${fmt(W.at(-1).weight, 1)} kg${e.actual != null ? ` (${sgn(e.actual, 2)} kg u odnosu na prošli tjedan)` : ''}`);
   if (L.length) parts.push(`Ø neto UH ${fmt(mean(L.map(x => x.net)), 1)} g · proteini ${fmt(mean(L.map(x => x.protein)))} g · masti ${fmt(mean(L.map(x => x.fat)))} g · ${fmt(mean(L.map(x => x.kcal)))} kcal`);
   if (e.days) parts.push(`Kalorijska bilanca ${sgn(e.sumBal, 0)} kcal – očekivano ${sgn(e.expectedWeek ?? e.expected, 2)} kg`);
-  const from = reportFrom(), fw = weightDates().filter(d => d >= from), lw = latestWeight(addDays(ws, 6));
+  const from = reportFrom(), fw = weightDates().filter(d => d >= from), lw = latestWeight(today());
   if (fw.length && lw) parts.push(`Od ${shortDate(from)}${from.slice(0, 4)}: ${sgn(lw.kg - db.weights[fw[0]], 1)} kg`);
   parts.push('', 'Detaljan izvještaj s grafovima je u privitku (HTML – otvori u pregledniku).');
   return parts.join('\n');
@@ -1777,7 +1777,7 @@ function buildReportHtml() {
   const s = db.settings, ws = addDays(weekStart(today()), -7), we = addDays(ws, 6);
   const wd = weekData(ws), prev = weekData(addDays(ws, -7)), e = weekEnergyVsScale(ws);
   const L = wd.filter(x => x.logged);
-  const from = reportFrom(), to = we < from ? today() : we;
+  const from = reportFrom(), to = today();
   const expV = e.expectedWeek ?? e.expected;
   const tile = (v, l, cls = '') => `<div class="tile"><b class="${cls}">${v}</b><span>${l}</span></div>`;
   const avgOf = k => mean(L.map(x => x[k]));
@@ -1787,7 +1787,7 @@ function buildReportHtml() {
   const weekFasts = db.fasts.filter(f => { const d = iso(new Date(f.end)); return d >= ws && d <= we; });
   // kumulativno
   const weeks = [];
-  for (let w = weekStart(from); w <= ws; w = addDays(w, 7)) weeks.push(weekEnergyVsScale(w));
+  for (let w = weekStart(from); w <= weekStart(today()); w = addDays(w, 7)) weeks.push(weekEnergyVsScale(w));
   const both = weeks.filter(w => w.expectedWeek != null && w.actual != null);
   const fwd = weightDates().filter(d => d >= from && d <= to);
   const startW = fwd.length ? db.weights[fwd[0]] : null, endW = fwd.length ? db.weights[fwd.at(-1)] : null;
@@ -1815,7 +1815,7 @@ table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:ta
 .wrap{overflow-x:auto}ul.ins{list-style:none;padding:0;margin:0}ul.ins li{background:var(--soft);border-radius:10px;padding:8px 10px;margin-top:6px;font-size:14px}
 ul.ins li.good{border-left:4px solid var(--good)}ul.ins li.warn{border-left:4px solid var(--warn)}ul.ins li.bad{border-left:4px solid var(--bad)}ul.ins li.info{border-left:4px solid var(--info)}ul.ins li{color:var(--ink)}
 .chart{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}.chart .grid{stroke:var(--grid)}.chart .ax{fill:var(--muted);font-size:9px}.chart .ref{stroke-width:1.2;stroke-dasharray:4 3}.chart .reflbl{font-size:9px;font-weight:600}
-.legend{font-size:12px;color:var(--muted)}footer{font-size:12px;color:var(--muted);margin:20px 0}
+.legend{font-size:12px;color:var(--muted)}.legend span{margin-right:10px}.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px}.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}.card-h h2{margin:0}.small{font-size:12px}ul.insights{list-style:none;padding:0;margin:0}ul.insights li{background:var(--soft);border-radius:10px;padding:8px 10px;margin-top:6px;font-size:14px}ul.insights li.good{border-left:4px solid var(--good)}ul.insights li.warn{border-left:4px solid var(--warn)}ul.insights li.bad{border-left:4px solid var(--bad)}ul.insights li.info{border-left:4px solid var(--info)}details.explain{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}details.explain summary{cursor:pointer;font-weight:600;color:var(--accent)}.help p,.help li{font-size:14px}footer{font-size:12px;color:var(--muted);margin:20px 0}
 @media(max-width:520px){.tiles{grid-template-columns:1fr 1fr}}`;
   const ins = insights(wd, prev);
   return `<!doctype html><html lang="hr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Porki – izvještaj ${shortDate(ws)}–${shortDate(we)}${we.slice(0, 4)}</title><style>${css}</style></head><body><main>
@@ -1840,7 +1840,9 @@ ${tile(expV != null ? sgn(expV, 2) + ' kg' : '–', 'očekivano iz bilance', exp
 ${weekFasts.length ? `<h3>Post</h3><p>${weekFasts.length} ${postova(weekFasts.length)} · Ø ${fmt(mean(weekFasts.map(f => f.end - f.start)) / 3600e3, 1)} h · najduži ${fmt(Math.max(...weekFasts.map(f => f.end - f.start)) / 3600e3, 1)} h</p>` : ''}
 </section>
 
-<section class="card"><h2>Kumulativno od ${shortDate(from)}${from.slice(0, 4)}</h2>
+${energyVsScaleCard(ws)}
+
+<section class="card"><h2>Kumulativno od ${shortDate(from)}${from.slice(0, 4)} do ${shortDate(to)}${to.slice(0, 4)}</h2>
 <div class="tiles">
 ${tile(fmt(startW, 1) + ' kg', 'početna težina')}${tile(fmt(endW, 1) + ' kg', 'zadnja težina')}${tile(startW != null && endW != null ? sgn(endW - startW, 1) + ' kg' : '–', 'promjena', startW == null || endW == null ? '' : endW <= startW ? 'good' : 'bad')}
 ${tile(startW != null && endW != null ? sgn((endW - startW) / (span / 7), 2) : '–', 'kg tjedno (prosjek)')}${tile(cumBal.length ? sgn(sum(cumBal) / KCAL_PER_KG, 1) + ' kg' : '–', `očekivano iz bilance (${cumBal.length} d)`)}${tile(goal && endW ? fmt(Math.max(0, endW - goal), 1) + ' kg' : '–', 'do cilja')}
@@ -1874,9 +1876,19 @@ async function sendReport() {
   location.href = `mailto:${encodeURIComponent(s.reportEmail || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text + '\n\n(Priloži preuzetu datoteku ' + filename + ')')}`;
 }
 function previewReport() {
-  const w = window.open('', '_blank');
-  if (w) { w.document.open(); w.document.write(buildReportHtml()); w.document.close(); }
-  else toast('Pregled nije moguće otvoriti');
+  // u aplikaciji, s gumbom za zatvaranje (window.open u Android aplikaciji nema povratka)
+  openDialog(`<h2>Pregled izvještaja</h2>
+    <iframe class="report-frame" title="Izvještaj" sandbox="allow-same-origin"></iframe>
+    <div class="btns end" style="margin-top:10px"><button type="button" class="btn" data-action="reports">‹ Natrag</button><button type="button" class="btn primary" data-action="report-send">Pošalji</button></div>`,
+    null, () => { dlg.querySelector('.report-frame').srcdoc = buildReportHtml(); });
+}
+// vrijednosti iz obrasca izvještaja vrijede odmah (i bez dodira na Spremi)
+function readReportForm() {
+  const f = dlg.open && dlg.querySelector('form');
+  if (!f || !f.reportDay) return;
+  const fd = Object.fromEntries(new FormData(f));
+  Object.assign(db.settings, { reportEmail: (fd.reportEmail || '').trim(), reportFrom: fd.reportFrom || '', reportDay: +fd.reportDay || 0, reportTime: fd.reportTime || '08:00' });
+  save();
 }
 async function scheduleReportNotif() {
   if (!LN) return;
@@ -1995,8 +2007,8 @@ const actions = {
   },
   'edit-favs': openFavs,
   reports: () => { if (dlg.open) closeDialog(); openReports(); },
-  'report-send': () => sendReport(),
-  'report-preview': () => previewReport(),
+  'report-send': () => { readReportForm(); sendReport(); },
+  'report-preview': () => { readReportForm(); scheduleReportNotif(); previewReport(); },
   goals: () => { if (dlg.open) closeDialog(); openGoals(); },
   'r-filter': el => { state.rFilter = el.dataset.v; render(); },
   'r-cat': el => { state.rCat = el.dataset.v; render(); },
