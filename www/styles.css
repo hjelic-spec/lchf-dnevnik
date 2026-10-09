@@ -283,3 +283,16 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
 .explain { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 .explain summary { cursor: pointer; font-weight: 600; color: var(--accent); min-height: 32px; }
 .explain p { font-size: 14px; margin: 8px 0; }
+
+/* Recepti */
+button.card.recipe { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.rmac { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 13px; }
+.rmac b { font-size: 16px; }
+.steps { padding-left: 20px; margin: 4px 0; }
+.steps li { margin: 6px 0; font-size: 14px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.segopt { flex: 1; text-align: center; cursor: pointer; }
+.segopt input { position: absolute; opacity: 0; pointer-events: none; }
+.segopt span { display: block; padding: 7px 10px; border-radius: 8px; font-size: 14px; color: var(--muted); }
+.segopt input:checked + span { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+nav.nav button { font-size: 10.5px; }

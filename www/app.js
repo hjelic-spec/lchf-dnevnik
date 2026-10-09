@@ -13,7 +13,8 @@ const DEFAULT_SETTINGS = {
   healthWeight: true,       // uvozi težinu iz Health Connecta za dane bez unosa
   lastBackup: null,
   hideInstall: false,
-  fastGoal: 16              // cilj posta u satima
+  fastGoal: 16,             // cilj posta u satima
+  diet: 'lchf', dietChosen: false, sex: '', age: null, activity: 1.375, pace: 0.5
 };
 const emptyDb = () => ({ settings: { ...DEFAULT_SETTINGS }, weights: {}, ketones: [], energy: {}, foods: [], favorites: [], products: {}, fasts: [], fast: null });
 
@@ -215,7 +216,7 @@ const APK_URL = 'https://github.com/hjelic-spec/porki/releases/latest';
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 let installEvt = null; // Chrome "Instaliraj aplikaciju" (samo web)
 
-const VIEWS = { today: viewToday, food: viewFood, weight: viewWeight, ketones: viewKetones, analysis: viewAnalysis };
+const VIEWS = { today: viewToday, food: viewFood, weight: viewWeight, ketones: viewKetones, analysis: viewAnalysis, recipes: viewRecipes };
 function render() {
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.tab));
   const showDate = state.tab === 'today' || state.tab === 'food';
@@ -269,7 +270,7 @@ function viewToday() {
       </div>
     </div>
     <div style="margin-top:12px">
-      ${pbar('Neto UH', t.net, s.carbLimit, 'var(--c-carb)', true)}
+      ${pbar('Neto UH', t.net, s.carbLimit, 'var(--c-carb)', lowCarb())}
       ${pbar('Proteini', t.protein, s.proteinTarget, 'var(--c-prot)')}
       ${pbar('Masti', t.fat, s.fatTarget, 'var(--c-fat)')}
     </div>
@@ -318,6 +319,7 @@ function healthButtons() {
 
 function banners() {
   let out = '';
+  if (!db.settings.dietChosen) out += `<div class="banner"><span>Odaberi način prehrane i izračunaj svoje dnevne ciljeve.</span><button class="btn primary sm" data-action="goals">Postavi</button></div>`;
   if (installEvt && !db.settings.hideInstall) {
     out += `<div class="banner"><span>Instaliraj aplikaciju na početni zaslon za brži pristup.</span><span class="btns"><button class="btn primary sm" data-action="install">Instaliraj</button><button class="x-btn" data-action="hide-install" aria-label="Zatvori">✕</button></span></div>`;
   }
@@ -402,10 +404,11 @@ function lastMealCard() {
   const pct = v => kc ? Math.round(v / kc * 100) : 0;
   const fatPct = pct(m.fat * 9), carbPct = pct(m.net * 4), protPct = pct(m.protein * 4);
   const notes = [];
-  if (s.carbLimit && m.net > s.carbLimit * 0.5) notes.push(['warn', `Ovaj obrok potrošio je ${fmt(m.net / s.carbLimit * 100)}% dnevnog limita UH.`]);
+  if (lowCarb() && s.carbLimit && m.net > s.carbLimit * 0.5) notes.push(['warn', `Ovaj obrok potrošio je ${fmt(m.net / s.carbLimit * 100)}% dnevnog limita UH.`]);
   if (m.protein < 20 && kc > 250) notes.push(['info', 'Malo proteina u obroku – ciljaj oko 25–40 g po glavnom obroku.']);
-  if (kc && carbPct > 10) notes.push(['warn', `UH čine ${carbPct}% kalorija obroka – za ketozu obično ispod 10%.`]);
-  if (kc && fatPct >= 60 && carbPct <= 10 && m.protein >= 20) notes.push(['good', 'Dobro složen LCHF obrok.']);
+  if (lowCarb() && kc && carbPct > 10) notes.push(['warn', `UH čine ${carbPct}% kalorija obroka – za ketozu obično ispod 10%.`]);
+  if (lowCarb() && kc && fatPct >= 60 && carbPct <= 10 && m.protein >= 20) notes.push(['good', 'Dobro složen LCHF obrok.']);
+  if (!lowCarb() && kc && m.protein >= 25 && m.kcal <= (s.kcalTarget || 2000) * 0.45) notes.push(['good', 'Dobro uravnotežen obrok s dovoljno proteina.']);
   return `<section class="card">
     <div class="card-h"><h2>Zadnji obrok</h2><span class="muted">${meal.start === meal.end ? h(meal.start) : `${h(meal.start)}–${h(meal.end)}`}${meals.length > 1 ? ` · ${meals.length}. obrok` : ''}</span></div>
     <p class="muted small" style="margin:-4px 0 10px">${meal.items.map(f => h(f.name)).join(', ')}</p>
@@ -418,7 +421,7 @@ function lastMealCard() {
     <div class="legend" style="margin-top:8px"><span><i style="background:var(--c-fat)"></i>masti ${fatPct}%</span><span><i style="background:var(--c-prot)"></i>proteini ${protPct}%</span><span><i style="background:var(--c-carb)"></i>UH ${carbPct}%</span></div>
     ${notes.length ? `<ul class="insights" style="margin-top:8px">${notes.map(([c, t]) => `<li class="${c}">${t}</li>`).join('')}</ul>` : ''}
     <h3>Stanje dana nakon obroka</h3>
-    ${statusRow('Neto UH', day.net, s.carbLimit, 'limit')}
+    ${statusRow('Neto UH', day.net, s.carbLimit, lowCarb() ? 'limit' : 'soft')}
     ${statusRow('Proteini', day.protein, s.proteinTarget, 'target')}
     ${statusRow('Masti', day.fat, s.fatTarget, 'soft')}
     ${statusRow('Kalorije', day.kcal, s.kcalTarget, 'soft', 'kcal')}
@@ -586,8 +589,9 @@ function insights(wd, prev) {
     const fatPct = kc ? sum(L.map(x => x.fat * 9)) / kc * 100 : 0;
     const carbPct = kc ? sum(L.map(x => x.net * 4)) / kc * 100 : 0;
     if (kc) {
-      if (carbPct > 10) add('warn', `Ugljikohidrati čine ${fmt(carbPct)}% kalorija – za ketozu obično ispod 5–10%.`);
-      add(fatPct >= 60 ? 'good' : 'info', `Raspodjela kalorija: masti ${fmt(fatPct)}%, proteini ${fmt(100 - fatPct - carbPct)}%, UH ${fmt(carbPct)}%.${fatPct < 60 ? ' Klasični LCHF je 65–75% masti; ako mršaviš i sit si, manje masti je u redu.' : ''}`);
+      if (lowCarb() && carbPct > 10) add('warn', `Ugljikohidrati čine ${fmt(carbPct)}% kalorija – za ketozu obično ispod 5–10%.`);
+      if (lowCarb()) add(fatPct >= 60 ? 'good' : 'info', `Raspodjela kalorija: masti ${fmt(fatPct)}%, proteini ${fmt(100 - fatPct - carbPct)}%, UH ${fmt(carbPct)}%.${fatPct < 60 ? ' Klasični LCHF je 65–75% masti; ako mršaviš bez gladi, manje masti je u redu.' : ''}`);
+      else add('info', `Raspodjela kalorija: UH ${fmt(carbPct)}%, proteini ${fmt(100 - fatPct - carbPct)}%, masti ${fmt(fatPct)}%.`);
     }
     const avgK = mean(L.map(x => x.kcal));
     if (s.kcalTarget && avgK > s.kcalTarget * 1.1) add('warn', `Prosječan unos ${fmt(avgK)} kcal je iznad cilja od ${fmt(s.kcalTarget)} kcal.`);
@@ -1005,6 +1009,8 @@ function openSettings() {
         <label>Visina (cm)<input name="heightCm" inputmode="decimal" value="${s.heightCm ?? ''}"></label>
         <label>Ciljna težina (kg)<input name="goalWeight" inputmode="decimal" value="${s.goalWeight ?? ''}"></label>
       </div>
+      <h3 style="margin:6px 0 0;font-size:13px;color:var(--muted)">Prehrana</h3>
+      <button type="button" class="btn block" data-action="goals">${h(dietOf(s.diet).name)} · izračunaj ciljeve ›</button>
       <h3 style="margin:6px 0 0;font-size:13px;color:var(--muted)">Dnevni ciljevi</h3>
       <div class="grid2">
         <label>Limit neto UH (g)<input name="carbLimit" inputmode="numeric" value="${s.carbLimit}"></label>
@@ -1012,7 +1018,7 @@ function openSettings() {
         <label>Masti (g)<input name="fatTarget" inputmode="numeric" value="${s.fatTarget}"></label>
         <label>Kalorije (kcal)<input name="kcalTarget" inputmode="numeric" value="${s.kcalTarget}"></label>
       </div>
-      <p class="muted small" style="margin:0">Okvirno: strogi keto ≤ 20–25 g, LCHF ≤ 50 g neto UH. Proteini oko 1,2–1,6 g po kg ciljne težine.</p>
+      <p class="muted small" style="margin:0">Okvirno: strogi keto ≤ 20–25 g, LCHF ≤ 50 g, umjereni low-carb ≤ 100 g neto UH. Proteini oko 1,2–1,6 g po kg ciljne težine. Za automatski izračun koristi „Prehrana“ iznad.</p>
       <label class="chk"><input type="checkbox" name="carbsIncludeFiber" ${s.carbsIncludeFiber ? 'checked' : ''}> UH na deklaracijama uključuju vlakna (US proizvodi)</label>
       <h3 style="margin:6px 0 0;font-size:13px;color:var(--muted)">Health Connect</h3>
       ${NATIVE ? `
@@ -1163,7 +1169,7 @@ function searchItems(q) {
 }
 const TAGS = { fav: '★', code: '▥', recent: '↺', db: '', off: '' };
 const LEVELS = { limit: ['ograničeno', 'limit'], avoid: ['izbjegavati', 'avoid'] };
-const levelPill = l => LEVELS[l] ? `<span class="pill ${LEVELS[l][1]}">${LEVELS[l][0]}</span>` : '';
+const levelPill = l => lowCarb() && LEVELS[l] ? `<span class="pill ${LEVELS[l][1]}">${LEVELS[l][0]}</span>` : '';
 function itemRow(it, src, i, sub = true) {
   return `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
     <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)} ${levelPill(it.level)}</div>
@@ -1583,6 +1589,163 @@ function openWeightQuick() {
     form => setTimeout(() => form.kg.focus(), 150));
 }
 
+/* ================= Način prehrane i dnevni ciljevi ================= */
+const DIETS = [
+  { id: 'keto', name: 'Keto (strogi)', desc: 'Do 20 g neto UH dnevno, puno masti, umjereno proteina. Cilj je stalna ketoza.' },
+  { id: 'lchf', name: 'LCHF', desc: 'Do 50 g neto UH, prirodne masti i proteini. Fleksibilnija od strogog ketoa.' },
+  { id: 'lowcarb', name: 'Umjereni low-carb', desc: 'Do 100 g neto UH – manje škroba i šećera, ali bez ketoze.' },
+  { id: 'medit', name: 'Mediteranska', desc: 'Povrće, riba, maslinovo ulje, mahunarke i cjelovite žitarice; oko 45 % kalorija iz UH.' },
+  { id: 'protein', name: 'Visokoproteinska', desc: 'Oko 2 g proteina po kg ciljne težine – za očuvanje mišića i trening snage.' },
+  { id: 'balanced', name: 'Uravnotežena', desc: 'Klasična raspodjela (oko 50 % UH, 20 % proteina, 30 % masti) uz kalorijski deficit.' }
+];
+const dietOf = id => DIETS.find(d => d.id === id) || DIETS[1];
+const lowCarb = () => ['keto', 'lchf', 'lowcarb'].includes(db.settings.diet || 'lchf');
+const ACTIVITY = [[1.2, 'Sjedilački (malo kretanja)'], [1.375, 'Lagana aktivnost (1–3 treninga tjedno)'], [1.55, 'Umjerena aktivnost (3–5 treninga)'], [1.725, 'Visoka aktivnost (6–7 treninga)']];
+const PACE = [[0, 'Održavanje težine'], [0.25, 'Polako (0,25 kg tjedno)'], [0.5, 'Umjereno (0,5 kg tjedno)'], [0.75, 'Brže (0,75 kg tjedno)']];
+
+// Mifflin-St Jeor + raspodjela makronutrijenata prema prehrani
+function calcTargets(p) {
+  const w = p.weight, h = p.height, age = p.age;
+  if (!w || !h || !age || !p.sex) return null;
+  const bmr = 10 * w + 6.25 * h - 5 * age + (p.sex === 'm' ? 5 : -161);
+  const tdee = bmr * p.activity;
+  const floor = p.sex === 'm' ? 1500 : 1200;
+  const kcal = Math.round(Math.max(floor, tdee - p.pace * 7700 / 7) / 10) * 10;
+  const refW = p.goal && p.goal < w ? Math.max(p.goal, w * 0.8) : w; // proteini prema ciljnoj težini
+  let P, C, F;
+  const rest = (k, used) => Math.max(0, (k - used));
+  switch (p.diet) {
+    case 'keto': P = 1.5 * refW; C = 20; F = rest(kcal, 4 * P + 4 * C) / 9; break;
+    case 'lchf': P = 1.5 * refW; C = 50; F = rest(kcal, 4 * P + 4 * C) / 9; break;
+    case 'lowcarb': P = 1.4 * refW; C = 100; F = rest(kcal, 4 * P + 4 * C) / 9; break;
+    case 'medit': P = 1.2 * refW; F = kcal * 0.35 / 9; C = rest(kcal, 4 * P + 9 * F) / 4; break;
+    case 'protein': P = 2.0 * refW; F = kcal * 0.30 / 9; C = rest(kcal, 4 * P + 9 * F) / 4; break;
+    default: P = 1.2 * refW; F = kcal * 0.30 / 9; C = rest(kcal, 4 * P + 9 * F) / 4;
+  }
+  F = Math.max(F, 30);
+  return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, protein: Math.round(P), carbs: Math.round(C), fat: Math.round(F) };
+}
+function openGoals() {
+  const s = db.settings, lw = latestWeight(today());
+  const opt = (arr, v) => arr.map(([val, l]) => `<option value="${val}" ${+v === val ? 'selected' : ''}>${l}</option>`).join('');
+  openDialog(`<h2>Prehrana i ciljevi</h2>
+    <div class="stack">
+      <label>Način prehrane<select name="diet">${DIETS.map(d => `<option value="${d.id}" ${(s.diet || 'lchf') === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}</select></label>
+      <p class="muted small" id="dietDesc" style="margin:0"></p>
+      <fieldset><legend>Spol</legend><div class="seg" style="display:flex">
+        <label class="segopt"><input type="radio" name="sex" value="z" ${s.sex === 'z' ? 'checked' : ''}><span>Žensko</span></label>
+        <label class="segopt"><input type="radio" name="sex" value="m" ${s.sex === 'm' ? 'checked' : ''}><span>Muško</span></label></div></fieldset>
+      <div class="grid2">
+        <label>Dob (godine)<input name="age" inputmode="numeric" value="${s.age ?? ''}"></label>
+        <label>Visina (cm)<input name="height" inputmode="numeric" value="${s.heightCm ?? ''}"></label>
+        <label>Težina (kg)<input name="weight" inputmode="decimal" value="${lw ? fmt(lw.kg, 1) : ''}"></label>
+        <label>Ciljna težina (kg)<input name="goal" inputmode="decimal" value="${s.goalWeight ?? ''}"></label>
+      </div>
+      <label>Aktivnost<select name="activity">${opt(ACTIVITY, s.activity || 1.375)}</select></label>
+      <label>Tempo<select name="pace">${opt(PACE, s.pace ?? 0.5)}</select></label>
+      <div class="preview" id="goalPrev"></div>
+      <p class="muted small" style="margin:0">Izračun: Mifflin-St Jeor × aktivnost − deficit za odabrani tempo (7700 kcal ≈ 1 kg). Kalorije ne idu ispod 1200 (Ž) / 1500 (M). Vrijednosti možeš kasnije ručno promijeniti u Postavkama.</p>
+      <div class="btns end"><button type="button" class="btn" data-action="close">Odustani</button><button class="btn primary">Primijeni</button></div>
+    </div>`,
+    fd => {
+      const p = goalInput(fd), t = calcTargets(p);
+      if (!t) { toast('Upiši spol, dob, visinu i težinu'); return false; }
+      Object.assign(db.settings, {
+        diet: p.diet, dietChosen: true, sex: p.sex, age: p.age, heightCm: p.height, goalWeight: p.goal || db.settings.goalWeight,
+        activity: p.activity, pace: p.pace, kcalTarget: t.kcal, carbLimit: t.carbs, proteinTarget: t.protein, fatTarget: t.fat
+      });
+      if (p.weight && db.weights[today()] == null && !latestWeight(today())) db.weights[today()] = r1(p.weight);
+      save();
+      toast(`${dietOf(p.diet).name}: ${fmt(t.kcal)} kcal · UH ${t.carbs} g · P ${t.protein} g · M ${t.fat} g`);
+    },
+    form => {
+      const upd = () => {
+        const fd = Object.fromEntries(new FormData(form)), p = goalInput(fd), t = calcTargets(p);
+        $('#dietDesc').textContent = dietOf(p.diet).desc;
+        $('#goalPrev').innerHTML = t
+          ? `<b>${fmt(t.kcal)} kcal</b> dnevno · neto UH <b>${t.carbs} g</b> · proteini <b>${t.protein} g</b> · masti <b>${t.fat} g</b><br><span class="muted">Bazalni metabolizam ${fmt(t.bmr)} kcal · ukupna potrošnja ≈ ${fmt(t.tdee)} kcal</span>`
+          : '<span class="muted">Upiši spol, dob, visinu i težinu za izračun.</span>';
+      };
+      form.addEventListener('input', upd);
+      form.addEventListener('change', upd);
+      upd();
+    });
+}
+const goalInput = fd => ({
+  diet: fd.diet || 'lchf', sex: fd.sex || '', age: num(fd.age), height: num(fd.height), weight: num(fd.weight), goal: num(fd.goal),
+  activity: num(fd.activity) || 1.375, pace: num(fd.pace) ?? 0.5
+});
+
+/* ================= Recepti ================= */
+const RECIPE_CATS = ['Sve', 'Doručak', 'Ručak i večera', 'Juhe', 'Prilozi i salate', 'Pekarski', 'Užine i slastice'];
+function recipeMacros(r, portions = 1) {
+  const by = recipeMacros.map || (recipeMacros.map = new Map(FOOD_DB.map(x => [x[0], x])));
+  const t = { carbs: 0, fiber: 0, fat: 0, protein: 0, grams: 0 };
+  for (const [name, g] of r.ingredients) {
+    const x = by.get(name);
+    if (!x) continue;
+    const k = g / 100;
+    t.carbs += x[1] * k; t.fiber += x[2] * k; t.fat += x[3] * k; t.protein += x[4] * k; t.grams += g;
+  }
+  const f = portions / r.servings;
+  const out = { carbs: r1(t.carbs * f), fiber: r1(t.fiber * f), fat: r1(t.fat * f), protein: r1(t.protein * f), grams: Math.round(t.grams * f), inc: false };
+  out.net = netOf(out); out.kcal = kcalOf(out);
+  return out;
+}
+function viewRecipes() {
+  const d = dietOf(db.settings.diet), mine = (state.rFilter || 'mine') === 'mine', cat = state.rCat || 'Sve';
+  const list = RECIPES.filter(r => (!mine || r.diets.includes(d.id)) && (cat === 'Sve' || r.cat === cat));
+  return `
+  <section class="card">
+    <div class="card-h"><h2>Recepti</h2><button class="btn ghost sm" data-action="goals">${h(d.name)} ›</button></div>
+    <div class="seg" style="display:flex;margin-bottom:10px">
+      <button class="${mine ? 'on' : ''}" data-action="r-filter" data-v="mine" style="flex:1">Za moju prehranu</button>
+      <button class="${!mine ? 'on' : ''}" data-action="r-filter" data-v="all" style="flex:1">Svi recepti</button>
+    </div>
+    <div class="chips">${RECIPE_CATS.map(c => `<button class="chip ${c === cat ? 'on' : ''}" data-action="r-cat" data-v="${h(c)}">${h(c)}</button>`).join('')}</div>
+  </section>
+  ${list.length ? list.map(r => {
+    const m = recipeMacros(r), fits = r.diets.includes(d.id);
+    const over = lowCarb() && db.settings.carbLimit && m.net > db.settings.carbLimit * 0.5;
+    return `<button class="card recipe" data-action="recipe" data-id="${r.id}">
+      <div class="card-h" style="margin-bottom:4px"><h2>${h(r.name)}</h2></div>
+      <div class="muted small">${h(r.cat)} · ${r.time} min · ${r.servings} ${r.servings === 1 ? 'porcija' : r.servings < 5 ? 'porcije' : 'porcija'}${!fits ? ` · <span class="warn">nije za ${h(d.name)}</span>` : ''}</div>
+      <div class="rmac"><span><b class="${over ? 'bad' : ''}" style="color:var(--c-carb)">${fmt(m.net, 1)}</b> g UH</span><span><b style="color:var(--c-prot)">${fmt(m.protein)}</b> g P</span><span><b style="color:var(--c-fat)">${fmt(m.fat)}</b> g M</span><span><b>${fmt(m.kcal)}</b> kcal</span><span class="muted">po porciji</span></div>
+    </button>`;
+  }).join('') : '<section class="card"><p class="empty">Nema recepata za ovaj odabir.</p></section>'}`;
+}
+function openRecipe(id) {
+  const r = RECIPES.find(x => x.id === id);
+  if (!r) return;
+  const m = recipeMacros(r), s = db.settings;
+  const share = (v, goal) => goal ? ` <span class="muted">(${fmt(v / goal * 100)}% dnevnog)</span>` : '';
+  openDialog(`<h2>${h(r.name)}</h2>
+    <p class="muted small" style="margin:0 0 10px">${h(r.cat)} · ${r.time} min · ${r.servings} ${r.servings === 1 ? 'porcija' : r.servings < 5 ? 'porcije' : 'porcija'} · ${r.diets.map(x => dietOf(x).name).join(', ')}</p>
+    <div class="tiles tiles4">
+      <div class="tile"><b style="color:var(--c-carb)">${fmt(m.net, 1)} g</b><span>neto UH</span></div>
+      <div class="tile"><b style="color:var(--c-prot)">${fmt(m.protein)} g</b><span>proteini</span></div>
+      <div class="tile"><b style="color:var(--c-fat)">${fmt(m.fat)} g</b><span>masti</span></div>
+      <div class="tile"><b>${fmt(m.kcal)}</b><span>kcal</span></div>
+    </div>
+    <p class="muted small" style="margin:6px 0 0">Po porciji (≈ ${fmt(m.grams)} g). UH${share(m.net, s.carbLimit)}, proteini${share(m.protein, s.proteinTarget)}.</p>
+    <h3>Sastojci (za ${r.servings} ${r.servings === 1 ? 'porciju' : r.servings < 5 ? 'porcije' : 'porcija'})</h3>
+    <ul class="list">${r.ingredients.map(([n, g]) => `<li><span class="grow">${h(n)}</span><b>${fmt(g)} g</b></li>`).join('')}</ul>
+    <p class="muted small" style="margin:4px 0 0">Sol, papar i začini po želji.</p>
+    <h3>Priprema</h3>
+    <ol class="steps">${r.steps.map(t => `<li>${h(t)}</li>`).join('')}</ol>
+    <div class="row" style="margin-top:12px"><label style="flex:1">Broj porcija za unos<input name="portions" inputmode="decimal" value="1"></label></div>
+    <div class="btns end" style="margin-top:10px">
+      <button type="button" class="btn" data-action="recipe-fav" data-id="${r.id}">${isFav(r.name) ? '★ U favoritima' : '☆ U favorite'}</button>
+      <button class="btn primary">Dodaj u obrok</button>
+    </div>`,
+    fd => {
+      const p = num(fd.portions) || 1, mm = recipeMacros(r, p);
+      db.foods.push({ id: uid(), date: state.date, time: nowTime(), name: r.name, carbs: mm.carbs, fiber: mm.fiber, fat: mm.fat, protein: mm.protein, grams: mm.grams, inc: false });
+      save();
+      toast(`Dodano: ${r.name}${p !== 1 ? ` × ${fmt(p, 1)}` : ''}`);
+    });
+}
+
 /* ================= Sigurnosna kopija ================= */
 function exportData() {
   db.settings.lastBackup = today(); save();
@@ -1645,6 +1808,17 @@ const actions = {
     save(); render();
   },
   'edit-favs': openFavs,
+  goals: () => { if (dlg.open) closeDialog(); openGoals(); },
+  'r-filter': el => { state.rFilter = el.dataset.v; render(); },
+  'r-cat': el => { state.rCat = el.dataset.v; render(); },
+  recipe: el => openRecipe(el.dataset.id),
+  'recipe-fav': el => {
+    const r = RECIPES.find(x => x.id === el.dataset.id); if (!r) return;
+    const m = recipeMacros(r);
+    const on = toggleFavorite({ name: r.name, per100: false, grams: m.grams, carbs: m.carbs, fiber: m.fiber, fat: m.fat, protein: m.protein, inc: false });
+    el.textContent = on ? '★ U favoritima' : '☆ U favorite';
+    toast(on ? 'Recept dodan u favorite (1 porcija)' : 'Uklonjeno iz favorita');
+  },
   'fav-new': () => openFood({ per100: true }),
   'fav-item': el => {
     const i = +el.dataset.i, src = el.dataset.src;

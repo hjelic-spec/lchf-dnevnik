@@ -244,6 +244,15 @@ const FOOD_SECTIONS = [
       { title: 'Povremeno', level: 'limit', items: [
         ['Tamna čokolada 85 %', 19, 12, 46, 12.5, 20]
       ] },
+      { title: 'Žitarice, mahunarke i mlijeko', level: 'avoid', items: [
+        ['Zobene pahuljice', 60, 10, 7, 13, 50],
+        ['Kvinoja, kuhana', 18.5, 2.8, 1.9, 4.4, 150],
+        ['Leća, kuhana', 12.2, 7.9, 0.4, 9, 150],
+        ['Slanutak, kuhani', 19.8, 7.6, 2.6, 8.9, 150],
+        ['Kruh, integralni', 38, 7, 3.5, 12, 50],
+        ['Mlijeko 3,2 %', 4.7, 0, 3.2, 3.3, 200],
+        ['Bjelanjak', 0.7, 0, 0.2, 10.9, 100]
+      ] },
       { title: 'Izvan LCHF-a', level: 'avoid', items: [
         ['Kruh, bijeli', 49, 2.7, 3.2, 9, 50],
         ['Riža, kuhana', 28, 0.4, 0.3, 2.7, 150],
