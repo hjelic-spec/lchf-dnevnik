@@ -7,26 +7,57 @@ const FOOD_SECTIONS = [
     title: 'Meso, riba i plodovi mora',
     intro: 'Temelj prehrane: proteini koji prirodno dolaze s mastima. Meso se jede s masnoćom i kožicom; kad možeš, biraj domaće i divlje podrijetlo.',
     groups: [
-      { title: 'Meso i perad', items: [
+      { title: 'Govedina i teletina', items: [
+        ['Junetina za juhu (prsa, rebra)', 0, 0, 16, 18, 250],
+        ['Junetina, mljevena (20 % masti)', 0, 0, 20, 17, 150],
+        ['Junetina, rib-eye', 0, 0, 20, 19, 250],
+        ['Junetina, ramstek', 0, 0, 7, 22, 200],
+        ['Junetina, biftek (file)', 0, 0, 5, 21, 200],
+        ['Junetina, but (odrezak)', 0, 0, 3.5, 22, 200],
+        ['Junetina, plećka (gulaš)', 0, 0, 8, 20, 200],
+        ['Goveđi rep', 0, 0, 13, 20, 250],
+        ['Teletina, odrezak (but)', 0, 0, 1.5, 21, 150],
+        ['Teletina, rebarca / vrat', 0, 0, 8, 19, 200],
+        ['Teletina, koljenica', 0, 0, 6, 20, 250],
+        ['Goveđa juha, bistra (100 ml)', 0.3, 0, 0.4, 1.2, 300]
+      ] },
+      { title: 'Svinjetina', items: [
+        ['Svinjski vrat', 0, 0, 20, 17, 200],
+        ['Svinjska rebra', 0, 0, 23, 16, 250],
+        ['Svinjski kotlet', 0, 0, 12, 19, 200],
+        ['Svinjski but (odrezak)', 0, 0, 5, 21, 150],
+        ['Svinjska plećka', 0, 0, 15, 17, 200],
+        ['Svinjska koljenica', 0, 0, 16, 18, 300],
+        ['Mljeveno miješano (juneće-svinjsko)', 0, 0, 22, 17, 150]
+      ] },
+      { title: 'Perad', items: [
+        ['Piletina, batak s kožom', 0, 0, 15, 17, 200],
+        ['Piletina, zabatak bez kože', 0, 0, 4, 19, 150],
+        ['Piletina, krilca', 0, 0, 15, 18, 200],
+        ['Piletina, prsa', 0, 0, 1.2, 23, 150],
+        ['Puretina, prsa', 0, 0, 1, 24, 150],
+        ['Puretina, batak', 0, 0, 7, 19, 200],
+        ['Patka s kožom', 0, 0, 39, 12, 200]
+      ] },
+      { title: 'Janjetina, kunić i divljač', items: [
+        ['Janjetina', 0, 0, 21, 17, 200],
+        ['Janjeći kotleti', 0, 0, 23, 17, 200],
+        ['Kunić', 0, 0, 5.5, 21, 200],
+        ['Divljač (srnetina)', 0, 0, 2.5, 22, 200]
+      ] },
+      { title: 'Suhomesnato i kobasice', items: [
         ['Slanina', 0.7, 0, 40, 13, 50],
         ['Pršut', 0.3, 0, 18, 26, 40],
         ['Kulen', 1, 0, 33, 24, 40],
         ['Zimska salama', 1, 0, 40, 24, 30],
         ['Kobasica, svinjska', 1, 0, 28, 15, 100],
-        ['Hrenovke', 2, 0, 25, 12, 100],
-        ['Junetina, mljevena (20 % masti)', 0, 0, 20, 17, 150],
-        ['Junetina, rib-eye', 0, 0, 20, 19, 250],
-        ['Svinjski vrat', 0, 0, 20, 17, 200],
-        ['Svinjska rebra', 0, 0, 23, 16, 250],
-        ['Janjetina', 0, 0, 21, 17, 200],
-        ['Piletina, batak s kožom', 0, 0, 15, 17, 200],
-        ['Piletina, prsa', 0, 0, 1.2, 23, 150],
-        ['Puretina, prsa', 0, 0, 1, 24, 150],
-        ['Divljač (srnetina)', 0, 0, 2.5, 22, 200]
+        ['Hrenovke', 2, 0, 25, 12, 100]
       ] },
       { title: 'Iznutrice', items: [
         ['Pileća jetra', 0.7, 0, 4.8, 17, 100],
-        ['Goveđa jetra', 3.9, 0, 3.6, 20, 100]
+        ['Goveđa jetra', 3.9, 0, 3.6, 20, 100],
+        ['Teleća jetra', 3, 0, 4.9, 20, 100],
+        ['Goveđi jezik', 3.7, 0, 16, 15, 150]
       ] },
       { title: 'Riba i plodovi mora', items: [
         ['Losos', 0, 0, 13, 20, 150],
