@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.Context
 import android.content.IntentFilter
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import android.content.Intent
@@ -121,6 +122,35 @@ class WidgetBridgePlugin : Plugin() {
             call.resolve()
         } catch (e: Exception) {
             call.reject(e.message ?: "Izvoz nije uspio", e)
+        }
+    }
+
+    /** Izvještaj kao HTML privitak u aplikaciji za e-mail, s upisanom adresom i naslovom. */
+    @PluginMethod
+    fun shareReport(call: PluginCall) {
+        val html = call.getString("html") ?: return call.reject("Nema izvještaja")
+        val name = call.getString("filename") ?: "porki-izvjestaj.html"
+        val email = call.getString("email") ?: ""
+        try {
+            val dir = File(context.cacheDir, "reports").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+            val file = File(dir, name)
+            file.writeText(html, Charsets.UTF_8)
+            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("text/html")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .putExtra(Intent.EXTRA_SUBJECT, call.getString("subject") ?: "Porki – izvještaj")
+                .putExtra(Intent.EXTRA_TEXT, call.getString("text") ?: "")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (email.isNotBlank()) send.putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
+            send.clipData = ClipData.newRawUri(name, uri)
+            // ponudi samo aplikacije za e-mail; ako ih nema, običan izbornik Dijeli
+            val mailOnly = Intent(send).apply { selector = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")) }
+            val target = if (mailOnly.resolveActivity(context.packageManager) != null) mailOnly else send
+            activity.startActivity(Intent.createChooser(target, "Pošalji izvještaj"))
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject(e.message ?: "Slanje nije uspjelo", e)
         }
     }
 

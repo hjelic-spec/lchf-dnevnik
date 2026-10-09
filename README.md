@@ -4,6 +4,7 @@ Jednostavna aplikacija za kontrolu težine – optimizirana za LCHF / keto, a po
 
 - **Prehrana i ciljevi** – odabir načina prehrane i izračun dnevnih kalorija i makronutrijenata (Mifflin-St Jeor, aktivnost, tempo mršavljenja)
 - **Recepti** – 20 recepata s hranjivim vrijednostima po porciji, filtrirani prema odabranoj prehrani; porciju dodaješ u obrok jednim dodirom
+- **Izvještaji e-mailom** – HTML izvještaj za prošli tjedan i kumulativno od početka ili odabranog datuma (težina, makronutrijenti, bilanca, očekivano vs. stvarno, ketoni, post, grafovi); otvara se e-mail s upisanom adresom i izvještajem u privitku, uz tjedni podsjetnik
 - **Danas** – brzi unos težine, neto ugljikohidrati prema dnevnom limitu, makronutrijenti, potrošene kalorije i energetska bilanca (ručni unos potrošnje za 30–90 dana unatrag), zadnje mjerenje ketona
 - **Hrana** – nutritivni pregled zadnjeg obroka (UH, proteini, masti, kcal, raspodjela i stanje dana: što je u deficitu ili preko limita), najčešće korištene namirnice za brzi unos, unos po porciji ili na 100 g
 - **Baza namirnica** – 148 namirnica u 8 sekcija (govedina i teletina, svinjetina, perad, riba, jaja i mliječni, masti, povrće, orašasti plodovi, voće, pića, dodaci) s oznakama „ograničeno“ i „izbjegavati“ + online pretraga [Open Food Facts](https://world.openfoodfacts.org)
