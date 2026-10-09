@@ -14,7 +14,7 @@ Jednostavna aplikacija za kontrolu težine – optimizirana za LCHF / keto, a po
 - **Analiza** – tjedni prosjeci, automatski uvidi, očekivani gubitak iz kalorijske bilance u usporedbi sa stvarnim (tjedan i 8 tjedana) s objašnjenjem i zdravstvenim savjetima, grafovi, tablica po danima i trend zadnjih 8 tjedana
 - **Android widget** – post s timerom, fazom i napretkom (pokreni ga gumbom „Započni“ bez otvaranja aplikacije), težina s promjenom od jučer, UH danas i očekivana promjena težine prema kalorijskoj bilanci (danas i 7 dana), zadnje mjerenje ketona i proteini danas; dodir na težinu otvara unos kg, na UH dodavanje hrane, na ketone karticu Ketoni
 
-Svi podaci ostaju **samo na uređaju**. Sigurnosnu kopiju napraviš u Postavke → Izvezi kopiju.
+Svi podaci ostaju **samo na uređaju**. Sigurnosnu kopiju napraviš u Postavke → Izvezi kopiju: u Android aplikaciji otvara se izbornik Dijeli (Google disk, Datoteke, e-mail…), a u web-verziji se preuzima datoteka. Uvezi kopiju vraća podatke iz te datoteke (i s Google diska).
 
 ## Android aplikacija (preporučeno – automatski uvoz iz Health Connecta)
 

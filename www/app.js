@@ -1491,6 +1491,7 @@ function fastWeekCard(ws, we) {
 /* ================= Android widget ================= */
 const WB = NATIVE ? (window.Capacitor.Plugins && window.Capacitor.Plugins.WidgetBridge) || window.Capacitor.registerPlugin('WidgetBridge') : null;
 if (WB) WB.addListener('widgetAction', () => widgetAction()).catch?.(() => {});
+if (WB) WB.addListener('backupShared', () => { db.settings.lastBackup = today(); save(); if (!dlg.open) render(); toast('Kopija je spremljena'); }).catch?.(() => {});
 let widgetTimer = 0, widgetReady = false, nativeTimer = 0;
 // Android: trajna kopija u datoteci aplikacije (WebView localStorage na disk zapisuje s odgodom)
 function nativeSave(now = false) {
@@ -1748,6 +1749,13 @@ function openRecipe(id) {
 
 /* ================= Sigurnosna kopija ================= */
 function exportData() {
+  if (NATIVE && WB) {
+    // Android: izbornik Dijeli (Google disk, Datoteke, e-mail…); datum kopije tek kad je odredište odabrano
+    WB.shareBackup({ json: JSON.stringify(db, null, 1), filename: `porki-${today()}.json` })
+      .then(() => toast('Odaberi Google disk ili drugo mjesto za kopiju'))
+      .catch(e => toast('Izvoz nije uspio: ' + e.message));
+    return;
+  }
   db.settings.lastBackup = today(); save();
   const blob = new Blob([JSON.stringify(db, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');

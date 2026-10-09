@@ -1,6 +1,12 @@
 package hr.lchf.dnevnik
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.ClipData
 import android.content.Context
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import android.content.Intent
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -79,6 +85,43 @@ class WidgetBridgePlugin : Plugin() {
                 call.reject(e.message ?: "Spremanje nije uspjelo", e)
             }
         }.start()
+    }
+
+    /** Sigurnosna kopija preko Androidovog izbornika Dijeli (Google disk, Datoteke, e-mail…). */
+    @PluginMethod
+    fun shareBackup(call: PluginCall) {
+        val json = call.getString("json") ?: return call.reject("Nema podataka")
+        val name = call.getString("filename") ?: "porki-kopija.json"
+        try {
+            val dir = File(context.cacheDir, "backup").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+            val file = File(dir, name)
+            file.writeText(json, Charsets.UTF_8)
+            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("application/json")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .putExtra(Intent.EXTRA_SUBJECT, "Porki – sigurnosna kopija")
+                .putExtra(Intent.EXTRA_TITLE, name)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = ClipData.newRawUri(name, uri)
+
+            // Sustav javlja kad korisnik odabere odredište (aplikaciju za spremanje/dijeljenje)
+            val action = context.packageName + ".BACKUP_TARGET_CHOSEN"
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context, i: Intent) {
+                    try { context.unregisterReceiver(this) } catch (_: Exception) { }
+                    notifyListeners("backupShared", JSObject())
+                }
+            }
+            ContextCompat.registerReceiver(context, receiver, IntentFilter(action), ContextCompat.RECEIVER_NOT_EXPORTED)
+            val chosen = PendingIntent.getBroadcast(context, 20, Intent(action).setPackage(context.packageName),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+            val chooser = Intent.createChooser(send, "Spremi ili podijeli kopiju", chosen.intentSender)
+            activity.startActivity(chooser)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject(e.message ?: "Izvoz nije uspio", e)
+        }
     }
 
     @PluginMethod
