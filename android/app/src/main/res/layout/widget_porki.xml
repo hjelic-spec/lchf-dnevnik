@@ -88,6 +88,16 @@
             android:max="1000"
             android:progressDrawable="@drawable/widget_progress" />
 
+        <ProgressBar
+            android:id="@+id/w_progress_eat"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="1000"
+            android:progressDrawable="@drawable/widget_progress_eat"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/w_fast_info"
             android:layout_width="match_parent"

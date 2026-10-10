@@ -156,31 +156,50 @@ class PorkiWidget : AppWidgetProvider() {
             val goal = p.getFloat("fastGoal", 16f).toDouble()
             v.setTextViewText(R.id.w_fast_label, "Post ${goalLabel(goal)}")
             if (start > 0 && start <= now) {
+                // ciklus: post (crveno) → prozor za jelo (zeleno) → post … dok korisnik ne završi
+                val fastMs = (goal * 3600_000).toLong()
+                val eatMs = if (goal < 24) ((24 - goal) * 3600_000).toLong() else 0L
+                val cycleMs = fastMs + eatMs
                 val elapsed = now - start
-                val goalMs = (goal * 3600_000).toLong()
-                val done = elapsed >= goalMs
+                val n = if (eatMs > 0) elapsed / cycleMs else 0L
+                val cycleStart = start + n * cycleMs
+                val eating = eatMs > 0 && now - cycleStart >= fastMs
+                val phaseStart = if (eating) cycleStart + fastMs else cycleStart
+                val phaseEnd = if (eating) cycleStart + cycleMs else cycleStart + fastMs
+                val phaseEl = now - phaseStart
+                val phaseMs = if (eating) eatMs else fastMs
+                val pct = if (phaseMs > 0) ((phaseEl * 1000) / phaseMs).coerceIn(0, 1000).toInt() else 0
                 v.setViewVisibility(R.id.w_clock, View.VISIBLE)
                 v.setViewVisibility(R.id.w_fast_off, View.GONE)
-                v.setViewVisibility(R.id.w_progress, View.VISIBLE)
                 v.setViewVisibility(R.id.w_fast_phase, View.VISIBLE)
-                val mins = elapsed / 60_000
+                v.setViewVisibility(R.id.w_progress, if (eating) View.GONE else View.VISIBLE)
+                v.setViewVisibility(R.id.w_progress_eat, if (eating) View.VISIBLE else View.GONE)
+                v.setProgressBar(if (eating) R.id.w_progress_eat else R.id.w_progress, 1000, pct, false)
+                val shown = if (eating) phaseEnd - now else phaseEl
+                val mins = shown / 60_000
                 v.setTextViewText(R.id.w_clock, "${mins / 60} h ${String.format(HR, "%02d", mins % 60)} min")
-                scheduleTick(context, start)
-                v.setProgressBar(R.id.w_progress, 1000, if (goalMs > 0) ((elapsed * 1000) / goalMs).coerceAtMost(1000).toInt() else 0, false)
+                v.setTextColor(R.id.w_clock, ContextCompat.getColor(context, if (eating) R.color.w_good else R.color.w_fast))
+                v.setTextViewText(R.id.w_fast_label, if (eating) "Jelo, još" else "Post ${goalLabel(goal)}")
                 v.setTextViewText(
                     R.id.w_fast_info,
-                    if (!done) "Početak ${whenTxt(start, today)} · cilj ${whenTxt(start + goalMs, today)}"
-                    else "Cilj ostvaren ${whenTxt(start + goalMs, today)} · +${hours(elapsed - goalMs)}"
+                    when {
+                        eating -> "Jelo do ${whenTxt(phaseEnd, today)} · zatim post ${Math.round(goal)} h"
+                        eatMs == 0L && phaseEl >= fastMs -> "Cilj ostvaren ${whenTxt(phaseEnd, today)} · +${hours(phaseEl - fastMs)}"
+                        eatMs > 0 -> "Post do ${whenTxt(phaseEnd, today)} · zatim jelo ${Math.round(24 - goal)} h"
+                        else -> "Početak ${whenTxt(start, today)} · cilj ${whenTxt(phaseEnd, today)}"
+                    }
                 )
-                v.setTextViewText(R.id.w_fast_phase, PHASES.last { elapsed / 3600_000.0 >= it.first }.second)
+                v.setTextViewText(R.id.w_fast_phase, if (eating) "Prozor za jelo · ${n + 1}. ciklus" else PHASES.last { phaseEl / 3600_000.0 >= it.first }.second)
                 v.setTextViewText(R.id.w_fast_btn, "Završi")
                 v.setOnClickPendingIntent(R.id.w_fast_btn, launch(context, "fast_end", 5))
-                scheduleGoal(context, start, start + goalMs)
+                scheduleTick(context, start)
+                scheduleGoal(context, start, start + fastMs)
             } else {
                 scheduleTick(context, 0L)
                 v.setViewVisibility(R.id.w_clock, View.GONE)
                 v.setViewVisibility(R.id.w_fast_off, View.VISIBLE)
                 v.setViewVisibility(R.id.w_progress, View.GONE)
+                v.setViewVisibility(R.id.w_progress_eat, View.GONE)
                 v.setViewVisibility(R.id.w_fast_phase, View.GONE)
                 v.setTextViewText(R.id.w_fast_info, "Cilj ${Math.round(goal)} h · Započni pokreće post odmah")
                 v.setTextViewText(R.id.w_fast_btn, "Započni")
@@ -197,8 +216,8 @@ class PorkiWidget : AppWidgetProvider() {
                 if (p.contains("weightDiff")) {
                     val d = p.getFloat("weightDiff", 0f)
                     val ref = p.getString("weightDiffRef", "") ?: ""
-                    val day = if (wd == today) "" else " (${shortDay(wd)})"
-                    v.setTextViewText(R.id.w_weight_info, "${signed(d.toDouble(), 1)} kg od $ref$day")
+                    val day = if (wd == today) "" else "${shortDay(wd)}: "
+                    v.setTextViewText(R.id.w_weight_info, "$day${signed(d.toDouble(), 1)} kg od $ref")
                     v.setTextColor(R.id.w_weight_info, color(if (d < 0f) R.color.w_good else if (d > 0f) R.color.w_bad else R.color.w_muted))
                 } else {
                     v.setTextViewText(R.id.w_weight_info, if (wd == today) "danas" else shortDay(wd))

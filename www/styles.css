@@ -304,3 +304,18 @@ nav.nav button { font-size: 10.5px; }
 .fsec.mine summary { font-weight: 600; }
 .fhead-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .fhead-row .fhead { margin: 6px 0; }
+
+/* Post: ciklus post (crveno) / prozor za jelo (zeleno) */
+:root { --fast: #c8344f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fast: #ef6a7f; } }
+:root[data-theme="dark"] { --fast: #ef6a7f; }
+.fast-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; color: #fff; }
+.fast-badge.fast { background: var(--fast); }
+.fast-badge.eat { background: var(--good); }
+.cyclebar { position: relative; height: 14px; margin-top: 12px; }
+.cyclefill { display: flex; height: 100%; border-radius: 99px; overflow: hidden; }
+.cyclebar i { display: block; height: 100%; }
+.cyclebar .seg-fast { background: color-mix(in srgb, var(--fast) 80%, transparent); }
+.cyclebar .seg-eat { background: color-mix(in srgb, var(--good) 75%, transparent); }
+.cyclebar b { position: absolute; top: -4px; width: 4px; height: 22px; margin-left: -2px; background: var(--ink); border-radius: 2px; box-shadow: 0 0 0 2px var(--card); transition: left .5s; }
+.cyclelbl { display: flex; justify-content: space-between; margin-top: 4px; }
