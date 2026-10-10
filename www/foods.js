@@ -5,6 +5,7 @@
 const FOOD_SECTIONS = [
   {
     title: 'Meso, riba i plodovi mora',
+    nintro: 'Glavni izvori proteina. Biraj nemasnije komade i ribu barem dvaput tjedno; suhomesnato jedi rjeđe.',
     intro: 'Temelj prehrane: proteini koji prirodno dolaze s mastima. Meso se jede s masnoćom i kožicom; kad možeš, biraj domaće i divlje podrijetlo.',
     groups: [
       { title: 'Govedina i teletina', items: [
@@ -74,6 +75,7 @@ const FOOD_SECTIONS = [
   },
   {
     title: 'Jaja i mliječni proizvodi',
+    nintro: 'Jaja, mlijeko i mliječni proizvodi – dobar izvor proteina i kalcija.',
     intro: 'Samo punomasne varijante – „light“ proizvodi često imaju dodani šećer i škrob.',
     groups: [
       { title: 'Jaja', items: [
@@ -98,14 +100,15 @@ const FOOD_SECTIONS = [
         ['Krem sir', 4, 0, 25, 6, 30],
         ['Svježi kravlji sir', 3, 0, 9, 12, 100]
       ] },
-      { title: 'Ograničeno (više laktoze)', level: 'limit', items: [
+      { title: 'Ograničeno (više laktoze)', ntitle: 'Jogurt i feta', level: 'limit', items: [
         ['Grčki jogurt 10 %', 3.5, 0, 10, 5, 150],
         ['Feta', 1, 0, 21, 14, 50]
       ] }
     ]
   },
   {
-    title: 'Zdrave masnoće i ulja',
+    title: 'Zdrave masnoće i ulja', ntitle: 'Masnoće i ulja',
+    nintro: 'Prednost hladno prešanom maslinovom ulju; životinjske masti koristi umjereno.',
     intro: 'Masti su glavni izvor energije. Biraj prirodne, hladno prešane i životinjske masti.',
     groups: [
       { title: 'Životinjske masti', items: [
@@ -127,7 +130,8 @@ const FOOD_SECTIONS = [
     ]
   },
   {
-    title: 'Povrće koje raste iznad zemlje',
+    title: 'Povrće koje raste iznad zemlje', ntitle: 'Povrće',
+    nintro: 'Osnova svakog obroka – jedi ga puno i raznoliko.',
     intro: 'Obavezan dio LCHF-a – biraj vrste s malo ugljikohidrata. Podzemno i škrobno povrće izbjegavaj.',
     groups: [
       { title: 'Lisnato povrće', items: [
@@ -154,11 +158,11 @@ const FOOD_SECTIONS = [
         ['Rajčica', 2.7, 1.2, 0.2, 0.9, 100],
         ['Celer, stabljika', 1.4, 1.6, 0.2, 0.7, 50]
       ] },
-      { title: 'Za začin, u malim količinama', level: 'limit', items: [
+      { title: 'Za začin, u malim količinama', ntitle: 'Luk i češnjak', level: 'limit', items: [
         ['Luk, crveni', 7.6, 1.7, 0.1, 1.1, 30],
         ['Češnjak', 31, 2.1, 0.5, 6.4, 5]
       ] },
-      { title: 'Izbjegavati (podzemno i škrobno)', level: 'avoid', items: [
+      { title: 'Izbjegavati (podzemno i škrobno)', ntitle: 'Korjenasto i škrobno povrće', level: 'avoid', items: [
         ['Krumpir, kuhani', 17, 1.8, 0.1, 1.9, 150],
         ['Batat', 15.2, 2.5, 0.1, 1.4, 150],
         ['Mrkva', 6.8, 2.8, 0.2, 0.9, 80],
@@ -167,7 +171,8 @@ const FOOD_SECTIONS = [
     ]
   },
   {
-    title: 'Orašasti plodovi, sjemenke i LCHF brašna',
+    title: 'Orašasti plodovi, sjemenke i LCHF brašna', ntitle: 'Orašasti plodovi, sjemenke i brašna',
+    nintro: 'Hranjivi, ali kalorični – mala šaka dnevno je dovoljna.',
     intro: 'Jedi umjereno – u većim količinama mogu kočiti mršavljenje.',
     groups: [
       { title: 'Oraščići', items: [
@@ -189,17 +194,18 @@ const FOOD_SECTIONS = [
         ['Kokosovo brašno', 20, 39, 15, 19, 20],
         ['Psyllium (ljuskice)', 2, 80, 0.6, 1.5, 10]
       ] },
-      { title: 'U manjim količinama', level: 'limit', items: [
+      { title: 'U manjim količinama', ntitle: 'Indijski orah i kikiriki maslac', level: 'limit', items: [
         ['Indijski orah', 27, 3.3, 44, 18, 20],
         ['Kikiriki maslac', 12, 6, 50, 25, 20]
       ] }
     ]
   },
   {
-    title: 'Voće (strogo ograničeno)',
+    title: 'Voće (strogo ograničeno)', ntitle: 'Voće',
+    nintro: 'Svježe voće u umjerenim porcijama, najbolje cijelo umjesto soka.',
     intro: 'Klasično voće ima previše šećera. Dopušteno je samo bobičasto voće u malim porcijama te limun i limeta.',
     groups: [
-      { title: 'Bobičasto voće, male porcije', level: 'limit', items: [
+      { title: 'Bobičasto voće, male porcije', ntitle: 'Bobičasto voće', level: 'limit', items: [
         ['Maline', 5.4, 6.5, 0.7, 1.2, 80],
         ['Kupine', 4.3, 5.3, 0.5, 1.4, 80],
         ['Jagode', 5.7, 2, 0.3, 0.7, 100],
@@ -209,7 +215,7 @@ const FOOD_SECTIONS = [
         ['Limunov sok', 6.6, 0.3, 0.2, 0.4, 15],
         ['Sok limete', 7.7, 0.4, 0.1, 0.4, 15]
       ] },
-      { title: 'Nije dopušteno', level: 'avoid', items: [
+      { title: 'Nije dopušteno', ntitle: 'Ostalo voće', level: 'avoid', items: [
         ['Jabuka', 11.4, 2.4, 0.2, 0.3, 150],
         ['Banana', 20, 2.6, 0.3, 1.1, 120],
         ['Naranča', 9.4, 2.4, 0.1, 0.9, 150]
@@ -218,6 +224,7 @@ const FOOD_SECTIONS = [
   },
   {
     title: 'Pića',
+    nintro: 'Voda, nezaslađena kava i čaj; zaslađena pića izbjegavaj.',
     intro: 'Voda, nezaslađena kava i čaj. U kavu možeš dodati maslac ili slatko vrhnje – dodaj ih kao zasebnu stavku.',
     groups: [
       { title: 'Bez ugljikohidrata', items: [
@@ -233,7 +240,8 @@ const FOOD_SECTIONS = [
     ]
   },
   {
-    title: 'Dodaci i iznimke',
+    title: 'Dodaci i iznimke', ntitle: 'Žitarice, mahunarke i ostalo',
+    nintro: 'Cjelovite žitarice i mahunarke uz dodatke; slatko i rafinirano povremeno.',
     intro: 'Dodaci koji olakšavaju LCHF i namirnice koje nisu dio LCHF-a – za dane s iznimkama.',
     groups: [
       { title: 'Dodaci', items: [
@@ -241,7 +249,7 @@ const FOOD_SECTIONS = [
         ['Kakao prah, nezaslađeni', 11, 30, 21, 23, 10],
         ['Eritritol (sladilo)', 0, 0, 0, 0, 10]
       ] },
-      { title: 'Povremeno', level: 'limit', items: [
+      { title: 'Povremeno', ntitle: 'Čokolada', level: 'limit', items: [
         ['Tamna čokolada 85 %', 19, 12, 46, 12.5, 20]
       ] },
       { title: 'Žitarice, mahunarke i mlijeko', level: 'avoid', items: [
@@ -253,7 +261,7 @@ const FOOD_SECTIONS = [
         ['Mlijeko 3,2 %', 4.7, 0, 3.2, 3.3, 200],
         ['Bjelanjak', 0.7, 0, 0.2, 10.9, 100]
       ] },
-      { title: 'Izvan LCHF-a', level: 'avoid', items: [
+      { title: 'Izvan LCHF-a', ntitle: 'Kruh, riža, tjestenina i med', level: 'avoid', items: [
         ['Kruh, bijeli', 49, 2.7, 3.2, 9, 50],
         ['Riža, kuhana', 28, 0.4, 0.3, 2.7, 150],
         ['Tjestenina, kuhana', 30, 1.8, 0.9, 5.8, 150],

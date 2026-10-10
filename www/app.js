@@ -1152,7 +1152,39 @@ async function hcSync(manual = false, days = 7) {
 
 /* ================= Baza namirnica i pretraga ================= */
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
-const dbItem = ([name, carbs, fiber, fat, protein, grams, level, section]) => ({ name, carbs, fiber, fat, protein, grams, per100: true, level, section, tag: 'db' });
+// Ocjena namirnice za odabranu prehranu: '' (prikladno), 'limit' (ograničeno) ili 'avoid' (izbjegavati)
+const KETO_STRICT = new Set(['Bademi', 'Lješnjaci', 'Kikiriki maslac', 'Bademovo brašno', 'Kokosovo brašno', 'Grčki jogurt 10 %', 'Luk, crveni', 'Paprika, crvena', 'Prokulica', 'Mahune']);
+const PROCESSED = new Set(['Slanina', 'Kulen', 'Zimska salama', 'Kobasica, svinjska', 'Hrenovke', 'Pršut', 'Majoneza']);
+const SATFAT = new Set(['Svinjska mast', 'Pačja mast', 'Goveđi loj', 'Maslac', 'Ghee (pročišćeni maslac)', 'Slatko vrhnje 35 %', 'Mascarpone', 'Kokosovo ulje', 'Patka s kožom']);
+const SUGARY = new Set(['Med', 'Tamna čokolada 85 %', 'Banana']);
+const REFINED = new Set(['Kruh, bijeli', 'Riža, kuhana', 'Tjestenina, kuhana']);
+function dietLevel(row) {
+  const name = row[0], net = row[1], base = row[6] || '', diet = db.settings.diet || 'lchf';
+  if (diet === 'lchf') return base;
+  if (diet === 'keto') {
+    if (name === 'Eritritol (sladilo)') return '';
+    if (base === 'avoid' || (base === 'limit' && net >= 10)) return 'avoid';
+    if (base === 'limit' || KETO_STRICT.has(name) || net >= 7) return 'limit';
+    return '';
+  }
+  if (diet === 'lowcarb') {
+    if (net >= 40) return 'avoid';
+    if (base === 'avoid' || net >= 15) return 'limit';
+    return '';
+  }
+  // mediteranska, visokoproteinska, uravnotežena: ocjena prema vrsti namirnice
+  if (SUGARY.has(name) && name !== 'Banana') return 'limit';
+  if (PROCESSED.has(name)) return diet === 'medit' ? 'avoid' : 'limit';
+  if (diet === 'medit' && (SATFAT.has(name) || REFINED.has(name))) return 'limit';
+  if (diet === 'protein' && REFINED.has(name)) return 'limit';
+  return '';
+}
+const ketoTitles = () => ['keto', 'lchf'].includes(db.settings.diet || 'lchf');
+const secTitle = s => ketoTitles() ? s.title : (s.ntitle || s.title);
+const secIntro = s => ketoTitles() ? s.intro : (s.nintro || s.intro);
+const grpTitle = g => ketoTitles() ? g.title : (g.ntitle || g.title);
+const SEC_BY_TITLE = new Map(FOOD_SECTIONS.map(s => [s.title, s]));
+const dbItem = row => { const [name, carbs, fiber, fat, protein, grams, , section] = row; const sc = SEC_BY_TITLE.get(section); return { name, carbs, fiber, fat, protein, grams, per100: true, level: dietLevel(row), section: sc ? secTitle(sc) : section, tag: 'db' }; };
 function searchItems(q) {
   // svaka riječ upita mora se pojaviti; zadnje slovo duljih riječi se zanemaruje (orah → orasi)
   const words = norm(q).split(/\s+/).filter(Boolean).map(w => w.length >= 4 ? w.slice(0, -1) : w);
@@ -1165,31 +1197,55 @@ function searchItems(q) {
   db.favorites.forEach(f => push(f, 'fav'));
   Object.entries(db.products).forEach(([code, p]) => push({ ...p, code, per100: true }, 'code'));
   quickItems().filter(x => !x.fav).forEach(r => push(r, 'recent'));
-  if (!words.length) return out.slice(0, 12); // bez upita: samo moje namirnice, ispod je popis po sekcijama
+  if (!words.length) return out; // bez upita: moje namirnice po podnaslovima, ispod popis po sekcijama
   FOOD_DB.forEach(row => push(dbItem(row), 'db'));
   return out.slice(0, 40);
 }
 const TAGS = { fav: '★', code: '▥', recent: '↺', db: '', off: '' };
 const LEVELS = { limit: ['ograničeno', 'limit'], avoid: ['izbjegavati', 'avoid'] };
-const levelPill = l => lowCarb() && LEVELS[l] ? `<span class="pill ${LEVELS[l][1]}">${LEVELS[l][0]}</span>` : '';
+const levelPill = l => LEVELS[l] ? `<span class="pill ${LEVELS[l][1]}">${LEVELS[l][0]}</span>` : '';
 function itemRow(it, src, i, sub = true) {
   return `<li><button type="button" class="tap" data-action="pick" data-src="${src}" data-i="${i}">
-    <div class="name">${TAGS[it.tag] ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)} ${levelPill(it.level)}</div>
+    <div class="name">${TAGS[it.tag] && sub ? `<span class="tag">${TAGS[it.tag]}</span> ` : ''}${h(it.name)} ${levelPill(it.level)}</div>
     <div class="muted small">${it.per100 ? 'na 100 g' : 'porcija'} · UH ${fmt(netOf(it), 1)} · M ${fmt(it.fat, 1)} · P ${fmt(it.protein, 1)} · ${fmt(kcalOf(it))} kcal${sub && it.section ? ` · ${h(it.section)}` : ''}</div>
   </button><button type="button" class="star ${isFav(it.name) ? 'on' : ''}" data-action="fav-item" data-src="${src}" data-i="${i}" aria-label="Dodaj u favorite">★</button></li>`;
 }
 const resultRows = (list, src) => list.map((it, i) => itemRow(it, src, i)).join('');
+// Moje namirnice u podnaslovima koji se otvaraju dodirom
+function myFoodGroups(list) {
+  const groups = [['fav', '★ Favoriti'], ['code', '▥ Skenirani proizvodi'], ['recent', '↺ Nedavno uneseno']];
+  return groups.map(([tag, title]) => {
+    const rows = list.map((it, i) => [it, i]).filter(([it]) => it.tag === tag);
+    if (!rows.length) return '';
+    return `<details class="fsec mine"><summary><span>${title}</span><span class="muted small">${rows.length}</span></summary>
+      <ul class="list">${rows.map(([it, i]) => itemRow(it, 's', i, false)).join('')}</ul></details>`;
+  }).join('');
+}
 function foodSections() {
+  const showAll = !!state.foodShowAll;
   let idx = 0;
-  return FOOD_SECTIONS.map((s, si) => `<details class="fsec">
-    <summary><span>${si + 1}. ${h(s.title)}</span><span class="muted small">${s.groups.reduce((n, g) => n + g.items.length, 0)}</span></summary>
-    <p class="muted small fsec-intro">${h(s.intro)}</p>
-    ${s.groups.map(g => `<h4 class="fgrp">${h(g.title)} ${levelPill(g.level)}</h4>
-      <ul class="list">${g.items.map(row => itemRow(dbItem(row), 'd', idx++, false)).join('')}</ul>`).join('')}
-  </details>`).join('');
+  return FOOD_SECTIONS.map((s, si) => {
+    let count = 0;
+    const groups = s.groups.map(g => {
+      const rows = g.items.map(row => { const i = idx++; const full = FOOD_DB[i]; return { it: dbItem(full), i }; })
+        .filter(({ it }) => showAll || it.level !== 'avoid');
+      if (!rows.length) return '';
+      count += rows.length;
+      const lv = new Set(rows.map(r => r.it.level));
+      const groupLevel = lv.size === 1 ? [...lv][0] : '';
+      return `<h4 class="fgrp">${h(grpTitle(g))} ${levelPill(groupLevel)}</h4>
+        <ul class="list">${rows.map(({ it, i }) => itemRow(groupLevel ? { ...it, level: '' } : it, 'd', i, false)).join('')}</ul>`;
+    }).join('');
+    if (!count) return '';
+    return `<details class="fsec">
+      <summary><span>${si + 1}. ${h(secTitle(s))}</span><span class="muted small">${count}</span></summary>
+      <p class="muted small fsec-intro">${h(secIntro(s))}</p>${groups}
+    </details>`;
+  }).join('');
 }
 function openFoodSearch() {
   state.offres = [];
+  const d = dietOf(db.settings.diet);
   openDialog(`<h2>Dodaj hranu</h2>
     <div class="row">
       <input name="q" type="search" placeholder="Traži namirnicu…" autocomplete="off" enterkeyhint="search">
@@ -1202,17 +1258,21 @@ function openFoodSearch() {
       <button type="button" class="btn" data-action="food-manual">Ručni unos</button>
       <button type="button" class="btn ghost" data-action="close" style="margin-left:auto">Zatvori</button>
     </div>
-    <p class="muted small" style="margin:8px 0 0">★ favoriti · ▥ skenirani proizvodi · ↺ nedavno. Vrijednosti su na 100 g i orijentacijske. Online pretraga koristi bazu Open Food Facts.</p>`,
+    <p class="muted small" style="margin:8px 0 0">Oznake „ograničeno“ i „izbjegavati“ odnose se na odabranu prehranu (${h(d.name)}). Vrijednosti su na 100 g i orijentacijske. Online pretraga koristi bazu Open Food Facts.</p>`,
     () => { offSearch(); return false; },
     form => {
       const upd = () => {
         const q = form.q.value.trim();
         state.sres = searchItems(q);
+        const showAll = !!state.foodShowAll;
         $('#sbody').innerHTML = q
           ? `<ul class="list">${state.sres.length ? resultRows(state.sres, 's') : '<li class="muted small">Nema rezultata u lokalnoj bazi – probaj online pretragu ili ručni unos.</li>'}</ul>`
-          : `${state.sres.length ? `<h3 class="fhead">Moje namirnice</h3><ul class="list">${resultRows(state.sres, 's')}</ul>` : ''}
-             <h3 class="fhead">Popis LCHF namirnica</h3>${foodSections()}`;
+          : `${state.sres.length ? `<h3 class="fhead">Moje namirnice</h3>${myFoodGroups(state.sres)}` : ''}
+             <div class="fhead-row"><h3 class="fhead">Namirnice za: ${h(d.name)}</h3>
+               <button type="button" class="btn ghost sm" data-action="food-showall">${showAll ? 'Samo prikladne' : 'Prikaži sve'}</button></div>
+             ${foodSections()}`;
       };
+      state.foodSearchUpd = upd;
       form.q.addEventListener('input', upd);
       upd();
     });
@@ -2006,6 +2066,7 @@ const actions = {
     save(); render();
   },
   'edit-favs': openFavs,
+  'food-showall': () => { state.foodShowAll = !state.foodShowAll; if (state.foodSearchUpd) state.foodSearchUpd(); },
   reports: () => { if (dlg.open) closeDialog(); openReports(); },
   'report-send': () => { readReportForm(); sendReport(); },
   'report-preview': () => { readReportForm(); scheduleReportNotif(); previewReport(); },

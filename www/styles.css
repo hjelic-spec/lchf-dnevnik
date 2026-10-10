@@ -299,3 +299,8 @@ nav.nav button { font-size: 10.5px; }
 
 /* Pregled izvještaja */
 .report-frame { width: 100%; height: calc(92vh - 150px); min-height: 360px; border: 1px solid var(--line); border-radius: 12px; background: #fff6f8; }
+
+/* Moje namirnice u podnaslovima, naslov popisa s prekidačem */
+.fsec.mine summary { font-weight: 600; }
+.fhead-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.fhead-row .fhead { margin: 6px 0; }
